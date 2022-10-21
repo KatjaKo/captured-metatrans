@@ -1,0 +1,163 @@
+---
+title: "common_unique_DE"
+author: "Katja K"
+date: "08/12/2021"
+output: html_document
+---
+
+````{r packages}
+
+library(ggplot2)
+library(pheatmap)
+library(ggpubr)
+library(dplyr)
+library(tidyverse)
+library(treemapify)
+
+```
+
+
+```{r land-use effect, message=FALSE, warning=FALSE}
+
+load("overall_de1.RData")
+
+lu_w_c <- lu_c_all %>%
+  filter(condition == "Wheat") %>%
+  select(Transcript)
+
+lu_g_c <- lu_c_all %>%
+  filter(condition == "Grass") %>%
+  select(Transcript)
+
+lu_w_s <- lu_s_all %>%
+  filter(condition == "Wheat") %>%
+  select(Transcript)
+
+lu_g_s <- lu_s_all %>%
+  filter(condition == "Grass") %>%
+  select(Transcript)
+
+w_com <- intersect(lu_w_s$Transcript, lu_w_c$Transcript) %>%
+  as.data.frame() %>%
+  mutate(LU = "Wheat", cond = "Common")
+
+ws_spe <- setdiff(lu_w_s$Transcript, lu_w_c$Transcript) %>% 
+  as.data.frame() %>% 
+  mutate(LU = "Wheat", cond = "S-specific")
+
+wc_spe <- setdiff(lu_w_c$Transcript, lu_w_s$Transcript) %>% 
+  as.data.frame() %>% 
+  mutate(LU = "Wheat", cond = "C-specific")
+
+g_com <- intersect(lu_g_s$Transcript, lu_g_c$Transcript) %>%
+  as.data.frame() %>%
+  mutate(LU = "Grass", cond = "Common")
+
+gs_spe <- setdiff(lu_g_s$Transcript, lu_g_c$Transcript) %>% 
+  as.data.frame() %>% 
+  mutate(LU = "Grass", cond = "S-specific")
+
+gc_spe <- setdiff(lu_g_c$Transcript, lu_g_s$Transcript) %>% 
+  as.data.frame() %>% 
+  mutate(LU = "Grass", cond = "C-specific")
+
+com_uni <- rbind(w_com, ws_spe, wc_spe, g_com, gs_spe, gc_spe)
+colnames(com_uni) <- c("Transcript", "LU", "Cond")
+
+com_uni <- com_uni %>% 
+  left_join(tdb_annot %>% rownames_to_column("Transcript"), by = "Transcript") %>%
+  left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
+
+```
+
+```{r effect of straw,  message=FALSE, warning=FALSE}
+
+str_w_s <- ws_all %>% 
+  filter(condition == "Straw") %>%
+  select(Transcript)
+
+str_w_c <- ws_all %>%
+  filter(condition == "Control") %>%
+  select(Transcript)
+
+str_g_s <- gs_all %>% 
+  filter(condition == "Straw") %>%
+  select(Transcript)
+
+str_g_c <- gs_all %>%
+  filter(condition == "Control") %>%
+  select(Transcript)
+
+s_com <- intersect(str_w_s$Transcript, str_g_s$Transcript) %>%
+  as.data.frame() %>%
+  mutate(Straw = "Straw", cond = "Common")
+
+sw_spe <- setdiff(str_w_s$Transcript, str_g_s$Transcript) %>% 
+  as.data.frame() %>% 
+  mutate(Straw = "Straw", cond = "W-specific")
+
+sg_spe <- setdiff(str_g_s$Transcript, str_w_s$Transcript) %>% 
+  as.data.frame() %>% 
+  mutate(Straw = "Straw", cond = "G-specific")
+
+c_com <- intersect(str_w_c$Transcript, str_g_c$Transcript) %>%
+  as.data.frame() %>%
+  mutate(Straw = "Control", cond = "Common")
+
+cw_spe <- setdiff(str_w_c$Transcript, str_g_c$Transcript) %>% 
+  as.data.frame() %>% 
+  mutate(Straw = "Control", cond = "W-specific")
+
+cg_spe <- setdiff(str_g_c$Transcript, str_w_c$Transcript) %>% 
+  as.data.frame() %>% 
+  mutate(Straw = "Control", cond = "G-specific")
+
+str_com_uni <- rbind(s_com, sw_spe, sg_spe, c_com, cw_spe, cg_spe)
+colnames(str_com_uni) <- c("Transcript", "Straw", "Cond")
+
+str_com_uni <- str_com_uni %>% 
+  left_join(tdb_annot %>% rownames_to_column("Transcript"), by = "Transcript") %>%
+  left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
+
+top20_enz_fam <- str_com_uni %>%
+  group_by(enz_family) %>%
+  summarise(num_sig= n()) %>%
+  filter(!is.na(enz_family)) %>%
+  arrange(desc(num_sig)) %>% 
+  head(20) %>%
+  select(enz_family)
+
+str_com_uni$Cond <- factor(str_com_uni$Cond, levels = c("G-specific", "Common", "W-specific"), labels = c("Grass-specific", "Common", "Wheat-specific"))
+
+```
+
+```{r plot, message=FALSE, warning=FALSE}
+
+str_com_uni %>%
+  filter(enz_family %in% top20_enz_fam$enz_family) %>%
+  mutate(Phylum = replace_na(Phylum, "unknown")) %>%
+  mutate(enz_class = ifelse(enz_class == "Protease", "P", enz_class)) %>%
+  mutate(enz_family = ifelse(enz_family == "Protease", "Proteases", enz_family)) %>%
+  group_by(Straw, Cond, enz_family, enz_class, Phylum) %>%
+  summarise(num_sig= n()) %>%
+  ggplot(aes(Straw, enz_family, size = num_sig, color = Phylum)) +
+  geom_point(alpha = 0.7, position = position_dodge2(width = 0.5)) +
+  facet_grid(enz_class~Cond, space = "free", scales = "free") +
+  theme_light(base_size = 14) +
+  theme(axis.title.x = element_blank()) +
+  scale_color_manual(values = c("#6c0b04", "#939d05", "#b60652", "#06aab6", "#b66a06", 
+                                 "#fca5f6", "#808080", "#0652b6")) +
+  scale_size(range = c(2,12)) + ylab("Enzyme family") + labs(size = "Number of DE transcripts") + theme(axis.text = element_text(size = 12)) + 
+  theme(axis.title = element_text(size = 12)) +
+  theme(legend.title = element_text(size = 12)) + 
+  theme(legend.text = element_text(size = 12)) + 
+  theme(strip.text.x = element_text(size = 12)) + theme(legend.text = element_text(size=12)) + guides(color = guide_legend(override.aes = list(size = 4)))
+
+```
+
+```{r save, message=FALSE, warning=FALSE}
+ggsave("figures/common_unique_DE.jpeg", 
+       width = 20, height = 15, units = "cm", dpi = 500)
+ggsave("figures/common_unique_DE.pdf", 
+       width = 30, height = 15, units = "cm", dpi = 500)
+```
