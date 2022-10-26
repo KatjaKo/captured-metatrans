@@ -1,0 +1,1068 @@
+---
+title: "seqcapRNA"
+author: "Katja Kozjek"
+output: 
+rmarkdown::html_document:
+    code_folding: 'hide'
+    toc: true
+    toc_float: true
+    smart: true
+    number_sections: false
+    highlight: tango
+    self_contained: true
+    smaller: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r wrap-hook, include=FALSE}
+library(knitr)
+hook_output = knit_hooks$get('output')
+knit_hooks$set(output = function(x, options) {
+  # this hook is used only when the linewidth option is not NULL
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    # any lines wider than n should be wrapped
+    if (any(nchar(x) > n)) x = strwrap(x, width = n)
+    x = paste(x, collapse = '\n')
+  }
+  hook_output(x, options)
+})
+```
+
+```{r packages,  message=FALSE, warning=FALSE}
+
+library("ggplot2")
+library("vegan")
+library("matR")
+library("wesanderson")
+library("phyloseq")
+library("ggrepel")
+library("dplyr")
+library("ggpubr")
+library(ggordiplots)
+library(pairwiseAdonis)
+library(DESeq2)
+library(readr)
+library(scales)
+library(pheatmap)
+
+```
+
+# Relative fungal and bacterial growth 
+
+```{r relative growth rate, message=FALSE, warning=FALSE}
+
+growth <- read.table("growth files/growth.matrix", header = T)
+
+growth$Manag <- factor(growth$Manag,levels = c("G","W"), labels = c("Grasslands", "Winter wheat"))
+
+bact_rel_growth <- ggplot(data=growth, aes(x=Time, y=bacteria, color=Manag, group=Manag)) +
+    geom_errorbar(aes(ymin=bacteria-bacteria_sd, ymax=bacteria+bacteria_sd), width=.1, 
+    position=position_dodge(0.00)) + geom_line(aes(color=Manag), size=1)+
+    geom_point(aes(color=Manag)) + xlab("Time point") + ylab("Relative growth rate") + labs(color="Land-use") + 
+    scale_color_manual(values=c("#1ABC9C", "#2980B9")) + theme_bw() + coord_cartesian(ylim=c(1,4)) +  ggtitle("a) Bacteria") +
+    theme(axis.text = element_text(size = 12)) + 
+    theme(axis.title = element_text(size = 14)) +
+    theme(legend.title = element_text(size = 14)) + 
+    theme(legend.text = element_text(size = 14)) + 
+    theme(axis.text.x = element_text(face = c('plain', 'bold', 'plain', 'bold', 'plain', 'plain', 'bold')))
+
+print(bact_rel_growth)
+
+ggsave("figures/bacterial_rel_growth.jpeg", width = 25, height = 15, units = "cm")
+
+fungal_rel_growth <- ggplot(data=growth, aes(x=Time, y=fungi, group=Manag, color=Manag)) +
+    geom_errorbar(aes(ymin=fungi-fungi_sd, ymax=fungi+fungi_sd), width=.1, 
+    position=position_dodge(0.00)) +
+    geom_line(aes(color=Manag), size=1)+
+    geom_point(aes(color=Manag)) + xlab("Time point") + ylab("Relative growth rate") + labs(color="Land-use") + 
+    scale_color_manual(values=c("#1ABC9C", "#2980B9")) + theme_bw() + coord_cartesian(ylim = c(1,4))+  ggtitle("b) Fungi") +
+    theme(axis.text = element_text(size = 12)) + 
+    theme(axis.title = element_text(size = 14)) +
+    theme(legend.title = element_text(size = 14)) + 
+    theme(legend.text = element_text(size = 14)) +
+    theme(axis.text.x = element_text(face = c('plain', 'bold', 'plain', 'bold', 'plain', 'plain', 'bold'))) 
+
+print(fungal_rel_growth)
+
+ggsave("figures/fungal_rel_growth.jpeg", width = 25, height = 15, units = "cm")
+
+ggarrange(bact_rel_growth, fungal_rel_growth, labels = c("a)", "b)"), ncol = 2, common.legend = TRUE, legend = "right")
+ggsave("figures/relative_growth_rate.jpeg", width = 35, height = 15, units = "cm")
+
+```
+
+# Total reads after trimming
+
+```{r total reads after QC, message=FALSE, warning=FALSE}
+
+read_counts <- read.table("read_counts.matrix",header = F,row.names=1)
+read_counts <- setNames(read_counts, c("total_reads","mapped_reads","Time", "Soils","Manag.Straw","Manag", "Straw"))
+
+read_counts$Manag.Straw <- factor(read_counts$Manag.Straw, levels = c("GC", "GS", "WC", "WS"))
+
+captured_reads <- ggplot(read_counts, aes(x=Time, y=total_reads, fill=Manag.Straw)) + 
+  geom_boxplot() + scale_fill_manual(values=c("#A3E4D7", "#1ABC9C", "#AED6F1", "#2980B9")) +
+  xlab("Time point") + ylab("Captured reads") + theme_bw() + labs(fill="Land-use + treatment") + 
+  theme(axis.text = element_text(size = 12)) + 
+  theme(axis.title = element_text(size = 14)) +
+  theme(legend.title = element_text(size = 14)) + 
+  theme(legend.text = element_text(size = 14)) + 
+  theme(title = element_text(size = 14)) + ggtitle("c)")
+  
+captured_reads <- captured_reads + theme(legend.position = "none")
+ggsave("figures/captured_reads.jpeg", width = 30, height = 15, units = "cm")
+
+#add relative growth rate
+bact_rel_growth <- bact_rel_growth + theme(legend.position = "none")
+fungal_rel_growth <- fungal_rel_growth + theme(legend.position = "none")
+
+library(gridExtra)
+layout_matrix=rbind(c(1,1, 2,2), c(NA, 3, 3, NA))
+grid.arrange(bact_rel_growth, fungal_rel_growth,captured_reads, layout_matrix = layout_matrix)
+g <- arrangeGrob(bact_rel_growth, fungal_rel_growth,captured_reads, layout_matrix = layout_matrix)
+ggsave("figures/rel_growth_and_reads_all.pdf", g, width = 35, height = 20, units = "cm")
+
+ggarrange(bact_rel_growth, fungal_rel_growth, labels = c("a)", "b)"), ncol = 2, ggarrange(captured_reads, labels = "c)"), nrow = 2)
+ggsave("figures/rel_growth_and_reads.jpeg", width = 35, height = 20, units = "cm")
+
+ggarrange(bacteria_growth, fungi_growth, labels = c("a)", "b)"), ncol = 2, ggarrange(captured_reads, labels = "c)"), nrow = 2)
+
+```
+
+# Import TMM counts and raw counts
+
+```{r import, message=FALSE, warning=FALSE}
+
+All_meta <- read.table("All.samples", header = T,row.names=1)
+All_TMM <- read.table("SeqCap_filt_gene.TMM.EXPR.matrix",header = T,row.names=1, check.names = F)
+
+gene_counts <- read.table("SeqCap_gene.counts.matrix", header = T, row.names = 1, check.names = F)
+gene_counts_fil <- t_Threshold(gene_counts, entry.min=5, row.min=20)
+
+All_gene <- ceiling(gene_counts_fil) 
+
+```
+
+# PCA on TMM 
++ filtered TMM counts
+
+```{r calculate PCA on TMM, message=FALSE, warning=FALSE}
+
+All_TMM_stat <- t(All_TMM)
+All_TMM_pca <- prcomp(All_TMM_stat)
+summary(All_TMM_pca)
+
+PCA_tmm <-  data.frame(All_TMM_pca$x, Manag=All_meta$Manag, Soils=All_meta$Soils, Man_str=All_meta$Manag.Straw, Time=All_meta$Time, Straw=All_meta$Straw)
+
+```
+
+```{r PCA variance, message=FALSE, warning=FALSE}
+
+frac_var <- function(x) x^2/sum(x^2)
+
+All_TMM_pca$sdev%>% 
+  as_tibble() %>% 
+  frac_var() %>% 
+  mutate(Comp = colnames(All_TMM_pca$x)) %>% 
+  head(5) %>%
+  ggplot(aes(x=Comp, y = value)) + 
+  geom_bar(stat = "identity", fill = "#4DC5F9") +
+  geom_hline(yintercept = 0.03, linetype=2) +
+  xlab("Principal Components") +
+  scale_y_continuous(name = "Variance Explained", breaks = seq(0,0.8,0.1), labels = percent_format(accuracy = 5L)) + 
+  theme_classic(base_size = 14)
+
+```
+
+## plot overall PCA
+
+```{r PCA on TMM, message=FALSE, warning=FALSE}
+
+sampledata_env <- All_meta
+
+envfit <- gg_envfit(All_TMM_pca, sampledata_env, perm = 9999, scaling=1, plot=F)
+envfit$df_arrows
+
+envfit_data <- envfit(All_TMM_pca, sampledata_env, perm = 9999, scaling=1, plot=F)
+
+PCA_TMM <- ggplot() +
+    geom_point(data = PCA_tmm, mapping = aes(x=PC1, y=PC2, color = Man_str, shape=Time), size = 10,alpha=0.8) +
+    geom_label_repel(data = PCA_tmm, mapping = aes(x=PC1, y=PC2, label=Soils), max.overlaps = Inf,color = 1,
+                     box.padding = unit(0.20, "lines"),
+                     point.padding = unit(0.35, "lines"),
+                     segment.color = 1) +
+    geom_vline(xintercept = 0, linetype=2) +
+    geom_hline(yintercept = 0, linetype=2) +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank()) + labs(colour = "Manag.Straw") +  
+    scale_color_manual(values=c("#A3E4D7", "#1ABC9C", "#AED6F1", "#2980B9")) + labs(colour = "Land-use + treatment", shape= "Time point") + guides(color = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) +
+  theme(axis.text = element_text(size = 14)) + 
+    theme(axis.title = element_text(size = 16)) +
+    theme(legend.title = element_text(size = 16)) + 
+    theme(legend.text = element_text(size = 16)) + xlab("PC1 (24.01%)") + ylab("PC2 (20.82%)")
+
+ggsave("figures/PCA_TMM.jpeg", width = 30, height = 20, units = "cm")
+ggsave("figures/PCA_TMM.pdf", width = 30, height = 20, units = "cm")
+
+PCA_TMM <- ggplot() +
+    geom_point(data = PCA_tmm, mapping = aes(x=PC1, y=PC2, color = Man_str, shape=Time), size = 10,alpha=0.8) +
+    geom_label_repel(data = PCA_tmm, mapping = aes(x=PC1, y=PC2, label=Soils), max.overlaps = Inf,color = 1,
+                     box.padding = unit(0.20, "lines"),
+                     point.padding = unit(0.35, "lines"),
+                     segment.color = 1) +
+    geom_vline(xintercept = 0, linetype=2) +
+    geom_hline(yintercept = 0, linetype=2) +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank()) + labs(colour = "Manag.Straw") +  
+    scale_color_manual(values=c("#A3E4D7", "#1ABC9C", "#AED6F1", "#2980B9")) + labs(colour = "Land-use + treatment", shape= "Time point") + guides(color = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) + 
+  theme(axis.text = element_text(size = 14)) + 
+    theme(axis.title = element_text(size = 16)) +
+    theme(legend.title = element_text(size = 16)) + 
+    theme(legend.text = element_text(size = 16))
+
+PCA_TMM + geom_segment(data = envfit$df_arrows,
+               aes(x = 0, xend = x, y = 0, yend = y), color = "black",
+               arrow = arrow(length = unit(0.2,"cm")), size=0.5) +
+               geom_text(data = envfit$df_arrows,  
+               aes(x = x, y = y, label = var), color = "black",
+               size = 5, 
+               hjust = -0.1) + xlab("PC1 (24.01%)") + ylab("PC2 (20.82%)")
+
+ggsave("figures/PCA_TMM_envfit.jpeg", width = 35, height = 20, units = "cm")
+ggsave("figures/PCA_TMM_envfit.pdf", width = 35, height = 20, units = "cm")
+
+```
+
+## PERMANOVA TMM
+
+```{r overall permanova TMM, message=FALSE, warning=FALSE}
+
+All_meta$Time <- as.factor(All_meta$Time)
+
+#soils/fields in strata; always
+
+#permanova 1, no time
+
+set.seed(5392)
+perm1 <- adonis(All_TMM_stat ~ Manag+Straw+Manag:Straw, 
+                   data=All_meta, permutations=999, strata = All_meta$Soils)
+perm1
+
+#permanova 2, time included
+set.seed(5392)
+perm2 <- adonis(All_TMM_stat ~ Manag+Straw+Time+Manag:Straw+Manag:Time+Straw:Time, 
+                   data=All_meta, permutations=999, strata = All_meta$Soils)
+perm2
+
+write.csv(perm2$aov.tab, "results/func_permanova_all.csv")
+
+func_posthoc_time <- pairwise.adonis2(All_TMM_stat~Time,data=All_meta, p.adjust.m = "bonferroni")
+
+write.csv(func_posthoc_time$T3_vs_T1, "results/posthoc_T3_vs_T1_func.csv")
+write.csv(func_posthoc_time$T6_vs_T1, "results/posthoc_T6_vs_T1_func.csv")
+write.csv(func_posthoc_time$T6_vs_T3, "results/posthoc_T6_vs_T3_func.csv")
+
+```
+
+# Hierarchical clustering
+
+```{r clustering, message=FALSE, warning=FALSE}
+
+#Compute sample correlations
+sample_cor <- cor(All_TMM)
+round(sample_cor,4)
+pheatmap(sample_cor)
+
+metadata_clustering <- All_meta
+names(metadata_clustering)[names(metadata_clustering) == "Manag.Straw"] <- "Land-use + treatment"
+names(metadata_clustering)[names(metadata_clustering) == "Time"] <- "Time point"
+
+my_colour = list(
+  `Land-use + treatment` = c(GC = "#A3E4D7", GS = "#1ABC9C", WC = "#AED6F1", WS = "#2980B9"), 
+  `Time point` = c(T1 = "#D5D8DC", T3 = "#808B96", T6 = "#2C3E50")
+)
+
+pheatmap_PCA <- pheatmap(sample_cor, border_color=NA, annotation_col=metadata_clustering[,c("Land-use + treatment", "Time point"),drop=F],annotation_legend=T, 
+         annotation_colors = my_colour, show_rownames = F, 
+         show_colnames = F,  col = colorRampPalette(c("#841258", "#d985b9", "#ffc78f"))(70), fontsize=16)
+
+save_pheatmap_png <- function(x, filename, width=1400, height=1000, res = 150) {
+  png(filename, width = width, height = height, res = res)
+  grid::grid.newpage()
+  grid::grid.draw(x$gtable)
+  dev.off()
+}
+save_pheatmap_png(pheatmap_PCA, "figures/heatmap_PCA.png")
+
+save_pheatmap_pdf <- function(x, filename, width=10, height=7) {
+    stopifnot(!missing(x))
+    stopifnot(!missing(filename))
+    pdf(filename, width=width, height=height)
+    grid::grid.newpage()
+    grid::grid.draw(x$gtable)
+    dev.off()
+}
+save_pheatmap_pdf(pheatmap_PCA, "figures/heatmap_PCA.pdf")
+
+library(ggplotify)
+heatmap_PCA <- as.ggplot(pheatmap_PCA)
+
+ggarrange(PCA_TMM, heatmap_PCA, labels = c("a)", "b)"), ncol = 2)
+grid.arrange(PCA_TMM, heatmap_PCA,nrow=2)
+merge_PCA <- arrangeGrob(PCA_TMM, heatmap_PCA)
+ggsave("figures/merge_PCA.pdf", width = 60, height = 25, units = "cm")
+    
+```
+
+# PCA grass
+
+```{r PCA grass, message=FALSE, warning=FALSE}
+
+All_meta_grass <- All_meta[-c(1,4,5,8,9,10,13,14,17,18,21,23,24,25,26,27,33,34,35,37,38,39,40,44),]
+All_TMM_grass <- All_TMM[-c(1,4,5,8,9,10,13,14,17,18,21,23,24,25,26,27,33,34,35,37,38,39,40,44)]
+
+All_TMM_grass <- t(All_TMM_grass)
+All_TMM_grass_pca <- prcomp(All_TMM_grass)
+
+PCA_grass_tmm <-  data.frame(All_TMM_grass_pca$x, Soils=All_meta_grass$Soils, Man_str=All_meta_grass$Manag.Straw, Time=All_meta_grass$Time, Straw=All_meta_grass$Straw)
+
+PCA_grass <- ggplot() +
+    geom_point(data = PCA_grass_tmm, mapping = aes(x=PC1, y=PC2, color = Man_str, shape=Time), size = 10,alpha=0.8) +
+    geom_label_repel(data = PCA_grass_tmm, mapping = aes(x=PC1, y=PC2, label=Soils), max.overlaps = Inf,color = 1,
+                     box.padding = unit(0.20, "lines"),
+                     point.padding = unit(0.35, "lines"),
+                     segment.color = 1) +
+    geom_vline(xintercept = 0, linetype=2) +
+    geom_hline(yintercept = 0, linetype=2) +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank()) + labs(colour = "Manag.Straw") +  
+    scale_color_manual(values=c("#A3E4D7", "#1ABC9C")) + labs(colour = "Treatment", shape= "Time point") + guides(color = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) +
+  theme(axis.text = element_text(size = 14)) + 
+    theme(axis.title = element_text(size = 16)) +
+    theme(legend.title = element_text(size = 16)) + 
+    theme(legend.text = element_text(size = 16))
+
+ggsave("figures/PCA_grass.jpeg", width = 30, height = 20, units = "cm")
+ggsave("figures/PCA_grass.pdf", width = 30, height = 20, units = "cm")
+
+```
+
+## PERMANOVA grass
+
+```{r grass permanova, message=FALSE, warning=FALSE}
+
+set.seed(5392)
+perm_grass <- adonis(All_TMM_grass ~ Straw+Time+Straw:Time, 
+                   data=All_meta_grass, permutations=999, strata = All_meta_grass$Soils)
+perm_grass
+
+write.csv(perm_grass$aov.tab, "results/permanova_grass.csv")
+
+grass_posthoc_time <- pairwise.adonis2(All_TMM_grass~Time,data=All_meta_grass, p.adjust.m = "bonferroni")
+
+write.csv(grass_posthoc_time$T6_vs_T3, "results/posthoc_T6_vs_T3_grass.csv")
+write.csv(grass_posthoc_time$T3_vs_T1, "results/posthoc_T3_vs_T1_grass.csv")
+write.csv(grass_posthoc_time$T6_vs_T1, "results/posthoc_T6_vs_T1_grass.csv")
+
+```
+
+# PCA wheat
+
+```{r PCA wheat, message=FALSE, warning=FALSE}
+
+All_meta_wheat <- All_meta[-c(2,3,6,7,11,12,15,16,19,20,22,28,29,30,31,32,36,41,42,43,45,46,47,48),]
+All_TMM_wheat <- All_TMM[-c(2,3,6,7,11,12,15,16,19,20,22,28,29,30,31,32,36,41,42,43,45,46,47,48)]
+                            
+All_TMM_wheat <- t(All_TMM_wheat)
+All_TMM_wheat_pca <- prcomp(All_TMM_wheat)
+
+PCA_wheat_tmm <-  data.frame(All_TMM_wheat_pca$x, Soils=All_meta_wheat$Soils, Man_str=All_meta_wheat$Manag.Straw, Time=All_meta_wheat$Time, Straw=All_meta_wheat$Straw)
+
+PCA_wheat <- ggplot() +
+    geom_point(data = PCA_wheat_tmm, mapping = aes(x=PC1, y=PC2, color = Man_str, shape=Time), size = 10,alpha=0.8) +
+    geom_label_repel(data = PCA_wheat_tmm, mapping = aes(x=PC1, y=PC2, label=Soils), max.overlaps = Inf,color = 1,
+                     box.padding = unit(0.20, "lines"),
+                     point.padding = unit(0.35, "lines"),
+                     segment.color = 1) +
+    geom_vline(xintercept = 0, linetype=2) +
+    geom_hline(yintercept = 0, linetype=2) +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank()) + labs(colour = "Manag.Straw") +  
+    scale_color_manual(values=c("#AED6F1", "#2980B9")) + labs(colour = "Treatment", shape= "Time point") + guides(color = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) +
+  theme(axis.text = element_text(size = 14)) + 
+    theme(axis.title = element_text(size = 16)) +
+    theme(legend.title = element_text(size = 16)) + 
+    theme(legend.text = element_text(size = 16))
+
+ggsave("figures/PCA_wheat.jpeg", width = 30, height = 20, units = "cm")
+ggsave("figures/PCA_wheat.pdf", width = 30, height = 20, units = "cm")
+
+```
+
+## PERMANOVA wheat
+
+```{r wheat permanova, message=FALSE, warning=FALSE}
+
+set.seed(5392)
+perm_wheat <- adonis(All_TMM_wheat ~ Straw+Time+Straw:Time, 
+                   data=All_meta_wheat, permutations=999, strata = All_meta_wheat$Soils)
+perm_wheat
+
+write.csv(perm_wheat$aov.tab, "results/permanova_wheat.csv")
+
+wheat_posthoc_time <- pairwise.adonis2(All_TMM_wheat~Time,data=All_meta_wheat, p.adjust.m = "bonferroni")
+
+write.csv(wheat_posthoc_time$T6_vs_T3, "results/posthoc_T6_vs_T3_wheat.csv")
+write.csv(wheat_posthoc_time$T3_vs_T1, "results/posthoc_T3_vs_T1_wheat.csv")
+write.csv(wheat_posthoc_time$T6_vs_T1, "results/posthoc_T6_vs_T1_wheat.csv")
+
+```
+
+### merge PCA grass, wheat
+```{r merge PCA, message=FALSE, warning=FALSE}
+
+ggarrange(PCA_grass, PCA_wheat, labels = c("a)", "b)"), ncol = 2, common.legend = FALSE, legend = "right", align = "hv", vjust = 2, hjust = -0.4)
+ggsave("figures/PCA_grass_wheat.jpeg", width = 35, height = 18, units = "cm")
+ggsave("figures/PCA_grass_wheat.pdf", width = 35, height = 18, units = "cm")
+
+```
+
+# Taxonomy 
++ filtered TPM gene counts
++ TPM considers the length of each gene and the amount of reads that map to that gene when you normalise the counts within sample
+
+```{r taxa import, message=FALSE, warning=FALSE}
+
+taxa_filt_count <- read.table("SeqCap_filt_gene.TPM_not_cross_norm.matrix",header = T,row.names=1,sep = "\t",check.names = FALSE)
+All_taxa <- read.table("Trinity_ass_200_taxa_fixed.tsv", sep = "\t", header = T, row.names = 1)
+All_taxa <- as.matrix(All_taxa)
+
+tax_count = otu_table(taxa_filt_count, taxa_are_rows = TRUE)
+tax_taxa = tax_table(All_taxa)
+
+all(rownames(All_meta) == colnames(taxa_filt_count))
+
+tax_meta <- sample_data(All_meta)
+
+physeq_tax <- phyloseq(tax_count, tax_taxa, tax_meta)
+
+```
+
+## PCoA taxonomy
+
+```{r pcoa taxa, message=FALSE, warning=FALSE}
+
+pcoa_tax <- ordinate(physeq_tax, "PCoA","bray")
+
+pcoa_merge <- merge(pcoa_tax$vectors,All_meta,by=0)
+
+plot_pcoa_tax <- ggplot(pcoa_merge, aes(x=Axis.1, y=Axis.2, color=Manag.Straw, shape=Time)) + geom_point(size = 10,alpha=0.8) + geom_label_repel(data = pcoa_merge, mapping = aes(x=Axis.1, y=Axis.2, label=Soils), max.overlaps = Inf,color = 1,
+                     box.padding = unit(0.20, "lines"),
+                     point.padding = unit(0.35, "lines"),
+                     segment.color = 1) +
+  geom_vline(xintercept = 0, linetype=2) + 
+  geom_hline(yintercept = 0, linetype=2) +
+  theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
+labs(colour="Land-use + treatment") + scale_color_manual(values = c("#A3E4D7", "#1ABC9C", "#AED6F1", "#2980B9")) + 
+geom_hline(yintercept = 0, linetype=2) + xlab("PCoA1") + ylab("PCoA2") +  guides(color = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) + theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank()) + 
+    theme(axis.text = element_text(size = 14)) + 
+    theme(axis.title = element_text(size = 16)) +
+    theme(legend.title = element_text(size = 16)) + 
+    theme(legend.text = element_text(size = 16))
+  
+print(plot_pcoa_tax)
+
+ggsave("figures/PCoA_TPM_taxa.jpeg", width = 30, height = 20, units = "cm")
+ggsave("figures/PCoA_TPM_taxa.pdf", width = 30, height = 20, units = "cm")
+
+```
+
+## PERMANOVA taxonomy
+
+```{r permanova taxa, message=FALSE, warning=FALSE}
+
+bray_taxa <- phyloseq::distance(physeq_tax, method = "bray")
+meta.bray_taxa <- as(sample_data(physeq_tax), "data.frame")
+
+#permanova 1
+set.seed(5392)
+permanova_tax1 <- adonis(bray_taxa ~ Manag+Straw+Manag:Straw, 
+                   data=meta.bray_taxa, permutations=999, strata=meta.bray_taxa$Soils)
+permanova_tax1
+
+#permanova 2,
+set.seed(5392)
+permanova_tax2 <- adonis(bray_taxa ~ Manag+Straw+Time+Manag:Straw+Manag:Time+Straw:Time, 
+                   data=meta.bray_taxa, permutations=999, strata = meta.bray_taxa$Soils)
+permanova_tax2
+
+write.csv(permanova_tax2$aov.tab, "results/taxa_permanova_all.csv")
+
+taxa_posthoc_time <- pairwise.adonis2(bray_taxa~Time,data=meta.bray_taxa, p.adjust.m = "bonferroni")
+
+write.csv(taxa_posthoc_time$T3_vs_T1, "results/posthoc_T3_vs_T1_taxa.csv")
+write.csv(taxa_posthoc_time$T6_vs_T1, "results/posthoc_T6_vs_T1_taxa.csv")
+write.csv(taxa_posthoc_time$T6_vs_T3, "results/posthoc_T6_vs_T3_taxa.csv")
+
+```
+
+# Differential expression 
++ https://rstudio-pubs-static.s3.amazonaws.com/329027_593046fb6d7a427da6b2c538caf601e1.html
+
+## all
+
+```{r differential expression all, message=FALSE, warning=FALSE}
+
+#here using the filtered counts from raw counts
+#two managements, two treatments, with an interaction term
+
+set.seed(6359)
+de_all <- DESeqDataSetFromMatrix(countData=ceiling(gene_counts_fil),colData=All_meta,design=~Straw+Manag)
+
+de_all$Straw <- as.factor(de_all$Straw)
+de_all$Manag <- as.factor(de_all$Manag)
+
+design(de_all) <- ~ Manag + Straw + Manag: Straw
+set.seed(2741)
+de_all <- DESeq(de_all) 
+resultsNames(de_all)
+
+saveRDS(de_all, file = "results/de_all_model.rds")
+
+```
+
+```{r all GS, message=FALSE, warning=FALSE}
+
+de_all <- readRDS("results/de_all_model.rds")
+
+#The effect of straw in grass (the main effect).
+res = results(de_all, contrast=c("Straw","S","C"))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+#down regulated
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+#up regulated
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+dim(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_all_GS.csv",row.names=T)
+
+```
+
+```{r all WS, message=FALSE, warning=FALSE}
+
+#The effect of straw in wheat
+res <- results(de_all, list( c("Straw_S_vs_C","ManagW.StrawS")))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+#down regulated
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+#up regulated
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_all_WS.csv",row.names=T)
+
+```
+
+```{r all WvsG C, message=FALSE, warning=FALSE}
+
+#difference between W and G without straw
+res = results(de_all, contrast=c("Manag","W","G"))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_all_WvsG_C.csv",row.names=T)
+
+```
+
+```{r WvsG S, message=FALSE, warning=FALSE}
+
+#difference between W and G with straw
+res = results(de_all, list( c("Manag_W_vs_G","ManagW.StrawS") ))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_all_WvsG_S.csv",row.names=T)
+
+```
+
+```{r all interaction, message=FALSE, warning=FALSE}
+
+#the different response in land-uses
+#Is the effect of straw different across land-uses?
+res = results(de_all, name="ManagW.StrawS")
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_all_interaction.csv",row.names=T)
+
+```
+
+## wheat
+
+```{r differential expression wheat, message=FALSE, warning=FALSE}
+
+wheat_diff <- read.csv("Wheat_filt_gene.counts.matrix", sep = "\t", header = T, row.names = 1,check.names = FALSE)
+
+wheat_meta <- subset(All_meta, Manag=='W')
+wheat_meta$Time <- as.factor(wheat_meta$Time)
+wheat_meta$Manag <- as.factor(wheat_meta$Manag)
+wheat_meta$Manag.Straw <- as.factor(wheat_meta$Manag.Straw)
+wheat_meta$Straw <- as.factor(wheat_meta$Straw)
+wheat_meta$Soils <- as.factor(wheat_meta$Soils)
+
+#prep
+set.seed(6359)
+d_wheat <- DESeqDataSetFromMatrix(countData=ceiling(wheat_diff),colData=wheat_meta,design=~Time+Straw)
+
+design(d_wheat) <- ~ Time+Straw + Time:Straw
+set.seed(2741)
+d_wheat <- DESeq(d_wheat)
+resultsNames(d_wheat) # lists the coefficients
+
+saveRDS(d_wheat, file = "results/d_wheat_model.rds")
+
+```
+
+```{r WS T1, message=FALSE, warning=FALSE}
+
+d_wheat <- readRDS("results/d_wheat_model.rds")
+
+#the straw effect for T1 (the main effect)
+res = results(d_wheat, contrast=c("Straw","S","C"))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_WS_T1.csv",row.names=T)
+
+```
+
+```{r WS T6, message=FALSE, warning=FALSE}
+#the straw effect for T6
+res = results(d_wheat, contrast=list(c("Straw_S_vs_C","TimeT6.StrawS")))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,log2FoldChange<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,log2FoldChange>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_WS_T6.csv",row.names=T)
+
+```
+
+```{r WS T3, message=FALSE, warning=FALSE}
+#the straw effect for T3
+res = results(d_wheat, contrast=list( c("Straw_S_vs_C","TimeT3.StrawS") ))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_WS_T3.csv",row.names=T)
+
+```
+
+```{r W T6vsT3 C, message=FALSE, warning=FALSE}
+
+#the effect of T6 vs T3, under control
+#the effect of “Time_T6_vs_T1” minus “Time_T3_vs_T1” ?
+res = results(d_wheat, contrast= c(0,-1,1,0,0,0))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_W_T6vsT3_C.csv",row.names=T)
+
+```
+
+```{r W T3vsT1 S, message=FALSE, warning=FALSE}
+
+#this tests if the straw effect is different in T3 compared to T1
+res = results(d_wheat, name="TimeT3.StrawS")
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_W_T3vsT1_S.csv",row.names=T)
+
+```
+
+```{r W T6vsT1 S,message=FALSE, warning=FALSE}
+
+#the interaction term for straw effect in T6 vs T1
+#this tests if the straw effect is different in T6 compared to T1
+res = results(d_wheat, name="TimeT6.StrawS")
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_W_T6vsT1_S.csv",row.names=T)
+
+
+```
+
+```{r W T6vsT3 S, message=FALSE, warning=FALSE}
+
+#the interaction term for straw effect in T6 vs T3
+#this tests if the straw effect is different in T6 compared to T3
+res = results(d_wheat, contrast=list("TimeT6.StrawS", "TimeT3.StrawS"))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_W_T6vsT3_S.csv",row.names=T)
+
+```
+
+## grass
+
+```{r differential expression grass, message=FALSE, warning=FALSE}
+
+grass_diff <- read.csv("Grass_filt_gene.counts.matrix", sep = "\t", header = T, row.names = 1,check.names = FALSE)
+
+grass_meta <- subset(All_meta, Manag=='G')
+grass_meta$Time <- as.factor(grass_meta$Time)
+grass_meta$Manag <- as.factor(grass_meta$Manag)
+grass_meta$Manag.Straw <- as.factor(grass_meta$Manag.Straw)
+grass_meta$Straw <- as.factor(grass_meta$Straw)
+grass_meta$Soils <- as.factor(grass_meta$Soils)
+
+#prep
+set.seed(6359)
+d_grass <- DESeqDataSetFromMatrix(countData=ceiling(grass_diff),colData=grass_meta,design=~Time+Straw)
+
+design(d_grass) <- ~ Time+Straw + Time:Straw
+set.seed(2741)
+d_grass <- DESeq(d_grass)
+resultsNames(d_grass) # lists the coefficients
+
+saveRDS(d_grass, file = "results/d_grass_model.rds")
+
+```
+
+```{r GS T1, message=FALSE, warning=FALSE}
+
+d_grass <- readRDS("results/d_grass_model.rds")
+
+#the straw effect for T1 (main effect)
+res = results(d_grass, contrast=c("Straw","S","C"))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_GS_T1.csv",row.names=T)
+
+```
+
+```{r GS T6, message=FALSE, warning=FALSE}
+
+#the straw effect for T6
+res = results(d_grass, contrast=list(c("Straw_S_vs_C","TimeT6.StrawS")))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_GS_T6.csv",row.names=T)
+
+```
+
+```{r GS T3, message=FALSE, warning=FALSE}
+
+#the straw effect for T3
+res = results(d_grass, contrast=list( c("Straw_S_vs_C","TimeT3.StrawS") ))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_GS_T3.csv",row.names=T)
+
+```
+
+```{r G T6vsT3 C, message=FALSE, warning=FALSE}
+
+#the effect of T6 vs T3, under control
+#the effect of “Time_T6_vs_T1” minus “Time_T3_vs_T1”
+res = results(d_grass, contrast= c(0,-1,1,0,0,0))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_G_T6vsT3_C.csv",row.names=T)
+
+```
+
+```{r G T3vsT1 S, message=FALSE, warning=FALSE}
+
+#this tests if the straw effect is different in T3 compared to T1
+res = results(d_grass, name="TimeT3.StrawS")
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_G_T3vsT1_S.csv",row.names=T)
+
+```
+
+```{r G T6vsT1 S, message=FALSE, warning=FALSE}
+
+#the interaction term for straw effect in T6 vs T1
+#this tests if the straw effect is different in T6 compared to T1
+res = results(d_grass, name="TimeT6.StrawS")
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_G_T6vsT1_S.csv",row.names=T)
+
+```
+
+```{r G T6vsT3 S, message=FALSE, warning=FALSE}
+
+#the interaction term for straw effect in T6 vs T3
+#this tests if the straw effect is different in T6 compared to T3
+res = results(d_grass, contrast=list("TimeT6.StrawS", "TimeT3.StrawS"))
+res$padj[is.na(res$padj)] <- 1
+summary(res)
+
+# all genes
+nrow(as.data.frame(res))
+# only genes with padj <0.05
+nrow(dplyr::filter(as.data.frame(res),padj<0.05))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)<0))
+nrow(dplyr::filter(as.data.frame(res),padj<0.05,(log2FoldChange)>0))
+
+res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
+nrow(res_signif)
+
+# sort
+res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
+
+write.csv(res_signif,"results/DE_G_T6vsT3_S.csv",row.names=T)
+
+```
