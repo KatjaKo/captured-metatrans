@@ -1,0 +1,219 @@
+---
+title: "DE genes for barplots"
+author: "Katja K"
+date: "28/06/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+*Figures for differential expression*
+
+```{r packages}
+library(cowplot)
+library(tidyverse)
+library(ggplot2)
+library(phyloseq)
+library(ggpubr)
+```
+
+# DE overall 
+
+```{r de overall,message=FALSE, warning=FALSE}
+
+load("overall_de1.RData")
+silva_hits <- read.table("Trinity_ass_200_vs_Sil132DB_all_NEW.hits")
+
+ovr_plot_ws <- ws_all_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(nsig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_ws$test <- "Straw-Wheat"
+
+ovr_plot_gs <- gs_all_annot %>%
+   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(nsig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_gs$test <- "Straw-Grass"
+
+ovr_plot_int <- int_all_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(nsig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_int$test <- "Straw-BothLU"
+
+ovr_plot_luc <- lu_c_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(nsig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_luc$test <- "LU-Control"
+
+ovr_plot_lus <- lu_s_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(nsig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_lus$test <- "LU-Straw"
+
+ovr_nsig_data <- rbind(ovr_plot_ws, ovr_plot_gs, ovr_plot_int, ovr_plot_luc, ovr_plot_lus)
+
+ovr_nsig_data <- ovr_nsig_data %>%
+  mutate(Main_test = ifelse(any(grepl("LU-", test)), "Land-use effect", "Straw addition effect"))
+
+ovr_nsig_data$condition <- factor(ovr_nsig_data$condition, levels = c("Grass", "Wheat", "Control", "Straw"))
+ovr_nsig_data$test <- factor(ovr_nsig_data$test, levels = c("Straw-Wheat", "Straw-Grass", "Straw-BothLU", "LU-Control", "LU-Straw"), labels = c("Wheat", "Grass", "Across LU", "Control", "Straw"))
+ovr_nsig_data$Main_test <- factor(ovr_nsig_data$Main_test, levels=c("Land-use effect", "Straw addition effect"))
+  
+ggplot(data = ovr_nsig_data) +
+  geom_bar(aes(x = test, y = log10(nsig), fill = condition),
+           position = "dodge",stat = "identity") +
+  geom_text(aes(test, log10(nsig), label=nsig, group = condition),
+            vjust = 1.5, size=5, position = position_dodge(width = .9)) +
+  facet_wrap(~Main_test, scales = "free_x") +
+  scale_fill_manual(values = c("#1ABC9C", "#2980B9", "#F5B041", "#6C3483")) +
+  ylab("Number of DE transcripts [log10]") +
+  theme_pubclean(base_size = 12) +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.x = element_blank()) + 
+  theme(axis.text = element_text(size = 12)) + 
+  theme(axis.title = element_text(size = 12)) +
+  theme(legend.title = element_text(size = 12)) + 
+  theme(legend.text = element_text(size = 12)) + 
+  theme(strip.text.x = element_text(size = 12)) + labs(fill="")
+
+ggsave("figures/de_overall.pdf",width = 20, height = 15, units = "cm")
+
+```
+
+# DE wheat
+
+```{r de wheat, message=FALSE, warning=FALSE}
+
+load("wheat_de_new.RData")
+
+ovr_plot_t1 <- ws_t1_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t1$test <- "Straw-T1"
+
+ovr_plot_t3 <- ws_t3_annot %>%
+   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t3$test <- "Straw-T3"
+
+ovr_plot_t6 <- ws_t6_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6$test <- "Straw-T6"
+
+ovr_plot_t6vt1_ws <- ws_t6vt1_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6vt1_ws$test <- "T6vT1-Straw"
+
+ovr_plot_t6vt3_ws <- ws_t6vt3_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6vt3_ws$test <- "T6vT3-Straw"
+
+ovr_plot_t3vt1_ws <- ws_t3vt1_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t3vt1_ws$test <- "T3vT1-Straw"
+
+ovr_nsig_data <- rbind(ovr_plot_t1, ovr_plot_t3, ovr_plot_t6, ovr_plot_t6vt1_ws, ovr_plot_t6vt3_ws, ovr_plot_t3vt1_ws)
+
+ovr_nsig_data <- ovr_nsig_data %>%
+  mutate(Main_test = ifelse(any(grepl("Straw-", test)), "Straw addition effect", "Time effect with straw addition"))
+
+ovr_nsig_data$condition <- factor(ovr_nsig_data$condition, levels = c("Control", "Straw", "T1", "T3", "T6"))
+ovr_nsig_data$test <- factor(ovr_nsig_data$test, levels = c("Straw-T1", "Straw-T3", "Straw-T6", "T3vT1-Straw", "T6vT1-Straw", "T6vT3-Straw"),  labels = c("T1", "T3", "T6", "T3vsT1", "T6vT1", "T6vT3"))
+  
+de_wheat_overview <- ggplot(data = ovr_nsig_data) +
+  geom_bar(aes(x = test, y = log10(num_sig), fill = condition),
+           position = "dodge",stat = "identity") +
+  geom_text(aes(test, log10(num_sig), label=num_sig, group = condition),
+            vjust = 1.5, size=5, position = position_dodge(width = .9)) +
+  facet_wrap(~Main_test, scales = "free_x") +
+  scale_fill_manual(values = c("#F5B041", "#6C3483", "#D5D8DC", "#808B96", "#2C3E50")) +
+  ylab("Number of DE transcripts [log10]") +
+  theme_pubclean(base_size = 14) +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.x = element_blank()) + labs(fill = "") + labs(tag="a)") + scale_y_continuous(limits = c(0,2.6))
+
+```
+
+# DE grass
+
+```{r de grass, message=FALSE, warning=FALSE}
+
+load("grass_de_new.RData")
+
+ovr_plot_t1 <- gs_t1_annot %>%
+   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t1$test <- "Straw-T1"
+
+ovr_plot_t3 <- gs_t3_annot %>%
+   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t3$test <- "Straw-T3"
+
+ovr_plot_t6 <- gs_t6_annot %>%
+   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6$test <- "Straw-T6"
+
+ovr_plot_t6vt1_gs <- gs_t6vt1_annot %>%
+   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6vt1_gs$test <- "T6vT1-Straw"
+
+ovr_plot_t6vt3_gs <- gs_t6vt3_annot %>%
+   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6vt3_gs$test <- "T6vT3-Straw"
+
+ovr_plot_t3vt1_gs <- gs_t3vt1_annot %>%
+   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t3vt1_gs$test <- "T3vT1-Straw"
+
+ovr_nsig_data <- rbind(ovr_plot_t1, ovr_plot_t3, ovr_plot_t6, ovr_plot_t6vt1_gs, ovr_plot_t6vt3_gs, ovr_plot_t3vt1_gs)
+
+ovr_nsig_data <- ovr_nsig_data %>%
+  mutate(Main_test = ifelse(any(grepl("Straw-", test)), "Straw addition effect", "Time effect with straw addition"))
+
+ovr_nsig_data$condition <- factor(ovr_nsig_data$condition, levels = c("Control", "Straw", "T1", "T3", "T6"))
+ovr_nsig_data$test <- factor(ovr_nsig_data$test, levels = c("Straw-T1", "Straw-T3", "Straw-T6", "T3vT1-Straw", "T6vT1-Straw", "T6vT3-Straw"),  labels = c("T1", "T3", "T6", "T3vsT1", "T6vT1", "T6vT3"))
+  
+de_grass_overview <- ggplot(data = ovr_nsig_data) +
+  geom_bar(aes(x = test, y = log10(num_sig), fill = condition),
+           position = "dodge",stat = "identity") +
+  geom_text(aes(test, log10(num_sig), label=num_sig, group = condition),
+            vjust = 1.5, size=5, position = position_dodge(width = .9)) +
+  facet_wrap(~Main_test, scales = "free_x") +
+  scale_fill_manual(values = c("#F5B041", "#6C3483", "#D5D8DC", "#808B96", "#2C3E50")) +
+  ylab("Number of DE transcripts [log10]") +
+  theme_pubclean(base_size = 14) +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.x = element_blank()) + labs(fill = "") + labs(tag="b)") + scale_y_continuous(limits = c(0,2.6))
+
+```
+
+```{r merge wheat and grass, message=FALSE, warning=FALSE}
+
+ggarrange(de_wheat_overview, de_grass_overview, common.legend = T)
+ggsave("figures/time_straw_comb_plot.pdf", width =30, height = 15, units = "cm")
+
+```
