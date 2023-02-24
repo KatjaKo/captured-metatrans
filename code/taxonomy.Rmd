@@ -19,7 +19,6 @@ library(ggpubr)
 *This script is for the taxonomy, after rRNA removal*
 
 # Overall taxonomy
-
 ```{r upload and prepare data, message=FALSE, warning=FALSE}
 load("overall_de1.RData")
 physeq_tax <- readRDS("physeq_tax.RDS")
@@ -79,7 +78,6 @@ top_euk_5phyla <- ggplot(top_euk_5phyla_percent, aes(Manag.Straw, Abundance, fil
   theme(legend.title = element_text(size = 12)) + 
   theme(legend.text = element_text(size = 12)) + 
   theme(strip.text.x = element_text(size = 12)) + theme(axis.title.x = element_blank(),axis.text.x = element_blank(), axis.ticks.x = element_blank())
-
 ```
 ## Archaea
 ```{r archaea, message=FALSE, warning=FALSE}
@@ -103,84 +101,10 @@ top_arch_5phyla <- ggplot(top_arch_5phyla_percent, aes(Manag.Straw, Abundance, f
   theme(legend.title = element_text(size = 12)) + 
   theme(legend.text = element_text(size = 12)) + 
   theme(strip.text.x = element_text(size = 12)) 
-
 ```
 ### Merge 
 ```{r merge, message=FALSE, warning=FALSE}
 
 plot_grid(top_bact_5phyla + theme(legend.justification = "left"), top_euk_5phyla + theme(legend.justification = "left"), top_arch_5phyla +theme(legend.justification = "left"), labels = c("a)", "b)", "c)"), ncol = 1, align = "hv")
 ggsave("figures/FigS2.pdf", width = 25, height = 25, units = "cm")
-
-```
-
-# Differential expression taxonomy
-
-```{r DE taxonomy, message=FALSE, warning=FALSE}
-ws_all_taxa <- ws_all_annot %>%
-   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>% 
-  group_by(Kingdom, Phylum, direction, condition) %>%
-  filter(!is.na(Phylum)) %>%
-  summarise(num_sig= n())
-ws_all_taxa$soil <- "Wheat"
-
-gs_all_taxa <- gs_all_annot %>%
-  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>% 
-  group_by(Kingdom, Phylum, direction, condition) %>%
-  filter(!is.na(Phylum)) %>%
-  summarise(num_sig= n())
-gs_all_taxa$soil <- "Grass"
-
-taxa_both <- rbind(ws_all_taxa, gs_all_taxa)
-taxa_both$lu_con <- paste(taxa_both$soil, taxa_both$condition, sep = "_")
-
-rem_phyla <- taxa_both %>% 
-  group_by(Phylum) %>%
-  summarise(tot_sig= sum(num_sig)) %>%
-  filter(tot_sig > 4)
-
-taxa_both <- taxa_both %>% 
-  filter(Phylum %in% rem_phyla$Phylum) %>%
-  select(Kingdom, Phylum, direction, lu_con, num_sig)
-
-test <- taxa_both %>% 
-  unite(x, c(Kingdom, Phylum), sep = "-") %>%
-  unite(y, c(direction, lu_con), sep = "-")
-test$x <- factor(test$x)
-test$y <- factor(test$y)
-test <- complete(test, x, y, fill = list(num_sig = NA))
-
-taxa_both_final <- test %>% 
-  separate(x, c("Kingdom", "Phylum"), sep = "-") %>%
-  separate(y, c("direction", "lu_con"), sep = "-")
-
-taxa_both_final$Kingdom <- factor(taxa_both_final$Kingdom, levels = c("Bacteria", "Eukaryota", "unknown"), labels = c("Bacteria", "Eukaryota", "Unknown"))
-taxa_both_final$lu_con <- factor(taxa_both_final$lu_con, levels = c("Grass_Control", "Wheat_Control", "Grass_Straw", "Wheat_Straw"), labels = c("GC", "WC", "GS", "WS"))
-taxa_both_final$Phylum <- factor(taxa_both_final$Phylum, levels = c("Acidobacteria", "Actinobacteria", "Ascomycota", "Bacteroidetes", "Chloroflexi", "Firmicutes", "Proteobacteria", "Streptophyta", "unknown.Bacteria", "unknown.Eukaryota", "unknown"), labels =c("Acidobacteria", "Actinobacteria", "Ascomycota", "Bacteroidetes", "Chloroflexi", "Firmicutes", "Proteobacteria", "Streptophyta", "unknown", "unknown", "unknown"))
-taxa_both_final$direction <- factor(taxa_both_final$direction)
-
-ggplot() + 
-  geom_bar(data = subset(taxa_both_final, direction == "Positive"), 
-           aes(x = Phylum, y = num_sig, fill = lu_con), stat = "identity", position = position_dodge(preserve = "single")) +
-  geom_bar(data = subset(taxa_both_final, direction == "Negative"), 
-           aes(x = Phylum, y = -num_sig, fill = lu_con), stat = "identity", position = position_dodge(preserve = "single")) +
-  geom_hline(yintercept = 0,colour = "grey90") + 
-  geom_text(data = subset(taxa_both_final, direction == "Positive"), 
-            aes(Phylum, num_sig, label=num_sig, group = lu_con), 
-            vjust = -0.5, size=4, position = position_dodge(width = .9)) +
-  geom_text(data = subset(taxa_both_final, direction == "Negative"), 
-      aes(Phylum, -num_sig, label=num_sig, group = lu_con), 
-      vjust = 1.5, size=4, position = position_dodge(width = .9)) +
-  theme_light(base_size = 10) +
-  ylab("Number of DE transcripts") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), panel.grid.major.y = element_blank(), panel.grid.minor = element_blank(), 
-        axis.text.y = element_blank(), axis.ticks.y = element_blank(), legend.title = element_blank()) +
-  facet_grid(cols = vars(Kingdom), space = "free", scales = "free") +
-  scale_fill_manual(values = c("#A3E4D7", "#1ABC9C", "#AED6F1", "#2980B9")) + theme(axis.text = element_text(size = 12)) + 
-  theme(axis.title = element_text(size = 12)) +
-  theme(legend.title = element_text(size = 12)) + 
-  theme(legend.text = element_text(size = 12)) + 
-  theme(strip.text.x = element_text(size = 12)) + labs(fill="Land-use + amendment")
-
-ggsave("figures/Fig4.pdf", width = 25, height = 15, units = "cm")
-
 ```
