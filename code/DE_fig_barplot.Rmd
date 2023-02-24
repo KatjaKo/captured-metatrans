@@ -81,8 +81,7 @@ ggplot(data = ovr_nsig_data) +
   theme(legend.text = element_text(size = 12)) + 
   theme(strip.text.x = element_text(size = 12)) + labs(fill="")
 
-ggsave("figures/de_overall.pdf",width = 20, height = 15, units = "cm")
-
+ggsave("figures/Fig3.pdf",width = 20, height = 15, units = "cm")
 ```
 
 # DE wheat
@@ -90,6 +89,7 @@ ggsave("figures/de_overall.pdf",width = 20, height = 15, units = "cm")
 ```{r de wheat, message=FALSE, warning=FALSE}
 
 load("wheat_de_new.RData")
+silva_hits <- read.table("Trinity_ass_200_vs_Sil132DB_all_NEW.hits")
 
 ovr_plot_t1 <- ws_t1_annot %>%
   filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
@@ -145,7 +145,6 @@ de_wheat_overview <- ggplot(data = ovr_nsig_data) +
   ylab("Number of DE transcripts [log10]") +
   theme_pubclean(base_size = 14) +
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.x = element_blank()) + labs(fill = "") + labs(tag="a)") + scale_y_continuous(limits = c(0,2.6))
-
 ```
 
 # DE grass
@@ -208,12 +207,11 @@ de_grass_overview <- ggplot(data = ovr_nsig_data) +
   ylab("Number of DE transcripts [log10]") +
   theme_pubclean(base_size = 14) +
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.x = element_blank()) + labs(fill = "") + labs(tag="b)") + scale_y_continuous(limits = c(0,2.6))
-
 ```
 
 ```{r merge wheat and grass, message=FALSE, warning=FALSE}
 
 ggarrange(de_wheat_overview, de_grass_overview, common.legend = T)
-ggsave("figures/time_straw_comb_plot.pdf", width =30, height = 15, units = "cm")
+ggsave("figures/FigS4.pdf", width =30, height = 15, units = "cm")
 
 ```
