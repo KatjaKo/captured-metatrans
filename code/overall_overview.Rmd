@@ -33,7 +33,6 @@ knit_hooks$set(output = function(x, options) {
 ```
 
 ```{r packages,  message=FALSE, warning=FALSE}
-
 library("ggplot2")
 library("vegan")
 library("matR")
@@ -45,17 +44,18 @@ library("ggpubr")
 library(ggordiplots)
 library(pairwiseAdonis)
 library(DESeq2)
+library(ggplotify)
 library(readr)
 library(scales)
 library(pheatmap)
-
+library(gridExtra)
 ```
 
 # Relative fungal and bacterial growth 
 
 ```{r relative growth rate, message=FALSE, warning=FALSE}
 
-growth <- read.table("growth files/growth.matrix", header = T)
+growth <- read.table("data/growth.matrix", header = T)
 
 growth$Manag <- factor(growth$Manag,levels = c("G","W"), labels = c("Grasslands", "Winter wheat"))
 
@@ -63,7 +63,7 @@ bact_rel_growth <- ggplot(data=growth, aes(x=Time, y=bacteria, color=Manag, grou
     geom_errorbar(aes(ymin=bacteria-bacteria_sd, ymax=bacteria+bacteria_sd), width=.1, 
     position=position_dodge(0.00)) + geom_line(aes(color=Manag), size=1)+
     geom_point(aes(color=Manag)) + xlab("Time point") + ylab("Relative growth rate") + labs(color="Land-use") + 
-    scale_color_manual(values=c("#1ABC9C", "#2980B9")) + theme_bw() + coord_cartesian(ylim=c(1,4)) +  ggtitle("a) Bacteria") +
+    scale_color_manual(values=c("#0e6251", "#2472a4")) + theme_bw() + coord_cartesian(ylim=c(1,4)) +  ggtitle("a) Bacteria") +
     theme(axis.text = element_text(size = 12)) + 
     theme(axis.title = element_text(size = 14)) +
     theme(legend.title = element_text(size = 14)) + 
@@ -72,14 +72,12 @@ bact_rel_growth <- ggplot(data=growth, aes(x=Time, y=bacteria, color=Manag, grou
 
 print(bact_rel_growth)
 
-ggsave("figures/bacterial_rel_growth.jpeg", width = 25, height = 15, units = "cm")
-
 fungal_rel_growth <- ggplot(data=growth, aes(x=Time, y=fungi, group=Manag, color=Manag)) +
     geom_errorbar(aes(ymin=fungi-fungi_sd, ymax=fungi+fungi_sd), width=.1, 
     position=position_dodge(0.00)) +
     geom_line(aes(color=Manag), size=1)+
     geom_point(aes(color=Manag)) + xlab("Time point") + ylab("Relative growth rate") + labs(color="Land-use") + 
-    scale_color_manual(values=c("#1ABC9C", "#2980B9")) + theme_bw() + coord_cartesian(ylim = c(1,4))+  ggtitle("b) Fungi") +
+    scale_color_manual(values=c("#0e6251", "#2472a4")) + theme_bw() + coord_cartesian(ylim = c(1,4))+  ggtitle("b) Fungi") +
     theme(axis.text = element_text(size = 12)) + 
     theme(axis.title = element_text(size = 14)) +
     theme(legend.title = element_text(size = 14)) + 
@@ -88,11 +86,7 @@ fungal_rel_growth <- ggplot(data=growth, aes(x=Time, y=fungi, group=Manag, color
 
 print(fungal_rel_growth)
 
-ggsave("figures/fungal_rel_growth.jpeg", width = 25, height = 15, units = "cm")
-
 ggarrange(bact_rel_growth, fungal_rel_growth, labels = c("a)", "b)"), ncol = 2, common.legend = TRUE, legend = "right")
-ggsave("figures/relative_growth_rate.jpeg", width = 35, height = 15, units = "cm")
-
 ```
 
 # Total reads after trimming
@@ -105,7 +99,7 @@ read_counts <- setNames(read_counts, c("total_reads","mapped_reads","Time", "Soi
 read_counts$Manag.Straw <- factor(read_counts$Manag.Straw, levels = c("GC", "GS", "WC", "WS"))
 
 captured_reads <- ggplot(read_counts, aes(x=Time, y=total_reads, fill=Manag.Straw)) + 
-  geom_boxplot() + scale_fill_manual(values=c("#A3E4D7", "#1ABC9C", "#AED6F1", "#2980B9")) +
+  geom_boxplot() + scale_fill_manual(values=c("#7ca619", "#0e6251", "#c4e1f5", "#2472a4")) +
   xlab("Time point") + ylab("Captured reads") + theme_bw() + labs(fill="Land-use + treatment") + 
   theme(axis.text = element_text(size = 12)) + 
   theme(axis.title = element_text(size = 14)) +
@@ -113,24 +107,18 @@ captured_reads <- ggplot(read_counts, aes(x=Time, y=total_reads, fill=Manag.Stra
   theme(legend.text = element_text(size = 14)) + 
   theme(title = element_text(size = 14)) + ggtitle("c)")
   
-captured_reads <- captured_reads + theme(legend.position = "none")
-ggsave("figures/captured_reads.jpeg", width = 30, height = 15, units = "cm")
+captured_reads <- captured_reads + theme(legend.position = "right")
 
 #add relative growth rate
 bact_rel_growth <- bact_rel_growth + theme(legend.position = "none")
 fungal_rel_growth <- fungal_rel_growth + theme(legend.position = "none")
 
-library(gridExtra)
 layout_matrix=rbind(c(1,1, 2,2), c(NA, 3, 3, NA))
 grid.arrange(bact_rel_growth, fungal_rel_growth,captured_reads, layout_matrix = layout_matrix)
 g <- arrangeGrob(bact_rel_growth, fungal_rel_growth,captured_reads, layout_matrix = layout_matrix)
-ggsave("figures/rel_growth_and_reads_all.pdf", g, width = 35, height = 20, units = "cm")
 
 ggarrange(bact_rel_growth, fungal_rel_growth, labels = c("a)", "b)"), ncol = 2, ggarrange(captured_reads, labels = "c)"), nrow = 2)
-ggsave("figures/rel_growth_and_reads.jpeg", width = 35, height = 20, units = "cm")
-
-ggarrange(bacteria_growth, fungi_growth, labels = c("a)", "b)"), ncol = 2, ggarrange(captured_reads, labels = "c)"), nrow = 2)
-
+ggsave("figures/Fig1.pdf", width = 35, height = 20, units = "cm")
 ```
 
 # Import TMM counts and raw counts
@@ -144,7 +132,6 @@ gene_counts <- read.table("SeqCap_gene.counts.matrix", header = T, row.names = 1
 gene_counts_fil <- t_Threshold(gene_counts, entry.min=5, row.min=20)
 
 All_gene <- ceiling(gene_counts_fil) 
-
 ```
 
 # PCA on TMM 
@@ -157,7 +144,6 @@ All_TMM_pca <- prcomp(All_TMM_stat)
 summary(All_TMM_pca)
 
 PCA_tmm <-  data.frame(All_TMM_pca$x, Manag=All_meta$Manag, Soils=All_meta$Soils, Man_str=All_meta$Manag.Straw, Time=All_meta$Time, Straw=All_meta$Straw)
-
 ```
 
 ```{r PCA variance, message=FALSE, warning=FALSE}
@@ -175,7 +161,6 @@ All_TMM_pca$sdev%>%
   xlab("Principal Components") +
   scale_y_continuous(name = "Variance Explained", breaks = seq(0,0.8,0.1), labels = percent_format(accuracy = 5L)) + 
   theme_classic(base_size = 14)
-
 ```
 
 ## plot overall PCA
@@ -195,8 +180,8 @@ PCA_TMM <- ggplot() +
                      box.padding = unit(0.20, "lines"),
                      point.padding = unit(0.35, "lines"),
                      segment.color = 1) +
-    geom_vline(xintercept = 0, linetype=2) +
-    geom_hline(yintercept = 0, linetype=2) +
+    geom_vline(xintercept = 0, linetype=2, colour="#a9a9a9") +
+    geom_hline(yintercept = 0, linetype=2, colour="#a9a9a9") +
     theme_bw() +
     theme(panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank()) + labs(colour = "Manag.Straw") +  
@@ -207,21 +192,18 @@ PCA_TMM <- ggplot() +
     theme(legend.title = element_text(size = 16)) + 
     theme(legend.text = element_text(size = 16)) + xlab("PC1 (24.01%)") + ylab("PC2 (20.82%)")
 
-ggsave("figures/PCA_TMM.jpeg", width = 30, height = 20, units = "cm")
-ggsave("figures/PCA_TMM.pdf", width = 30, height = 20, units = "cm")
-
 PCA_TMM <- ggplot() +
     geom_point(data = PCA_tmm, mapping = aes(x=PC1, y=PC2, color = Man_str, shape=Time), size = 10,alpha=0.8) +
     geom_label_repel(data = PCA_tmm, mapping = aes(x=PC1, y=PC2, label=Soils), max.overlaps = Inf,color = 1,
                      box.padding = unit(0.20, "lines"),
                      point.padding = unit(0.35, "lines"),
                      segment.color = 1) +
-    geom_vline(xintercept = 0, linetype=2) +
-    geom_hline(yintercept = 0, linetype=2) +
+    geom_vline(xintercept = 0, linetype=2, colour="#a9a9a9") +
+    geom_hline(yintercept = 0, linetype=2, colour="#a9a9a9") +
     theme_bw() +
     theme(panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank()) + labs(colour = "Manag.Straw") +  
-    scale_color_manual(values=c("#A3E4D7", "#1ABC9C", "#AED6F1", "#2980B9")) + labs(colour = "Land-use + treatment", shape= "Time point") + guides(color = guide_legend(order = 1),
+    scale_color_manual(values=c("#7ca619", "#0e6251", "#c4e1f5", "#2472a4")) + labs(colour = "Land-use + treatment", shape= "Time point") + guides(color = guide_legend(order = 1),
          shape = guide_legend(order = 2)) + 
   theme(axis.text = element_text(size = 14)) + 
     theme(axis.title = element_text(size = 16)) +
@@ -229,16 +211,14 @@ PCA_TMM <- ggplot() +
     theme(legend.text = element_text(size = 16))
 
 PCA_TMM + geom_segment(data = envfit$df_arrows,
-               aes(x = 0, xend = x, y = 0, yend = y), color = "black",
+               aes(x = 0, xend = x, y = 0, yend = y), color = "#3d3d3d",
                arrow = arrow(length = unit(0.2,"cm")), size=0.5) +
                geom_text(data = envfit$df_arrows,  
-               aes(x = x, y = y, label = var), color = "black",
+               aes(x = x, y = y, label = var), color = "#3d3d3d",
                size = 5, 
-               hjust = -0.1) + xlab("PC1 (24.01%)") + ylab("PC2 (20.82%)")
-
-ggsave("figures/PCA_TMM_envfit.jpeg", width = 35, height = 20, units = "cm")
-ggsave("figures/PCA_TMM_envfit.pdf", width = 35, height = 20, units = "cm")
-
+               hjust = -0.1) + xlab("PC1 (24.01%)") + ylab("PC2 (20.82%)")    
+               
+ggsave("figures/Fig2.pdf", width = 35, height = 20, units = "cm")
 ```
 
 ## PERMANOVA TMM
@@ -249,27 +229,17 @@ All_meta$Time <- as.factor(All_meta$Time)
 
 #soils/fields in strata; always
 
-#permanova 1, no time
-
 set.seed(5392)
-perm1 <- adonis(All_TMM_stat ~ Manag+Straw+Manag:Straw, 
+perm3 <- adonis(All_TMM_stat ~ Manag+Straw+Time+Manag:Straw+Manag:Time+Straw:Time+Manag:Straw:Time, 
                    data=All_meta, permutations=999, strata = All_meta$Soils)
-perm1
-
-#permanova 2, time included
-set.seed(5392)
-perm2 <- adonis(All_TMM_stat ~ Manag+Straw+Time+Manag:Straw+Manag:Time+Straw:Time, 
-                   data=All_meta, permutations=999, strata = All_meta$Soils)
-perm2
-
-write.csv(perm2$aov.tab, "results/func_permanova_all.csv")
+perm3
+write.csv(perm3$aov.tab, "results/func_permanova_all_3way.csv")
 
 func_posthoc_time <- pairwise.adonis2(All_TMM_stat~Time,data=All_meta, p.adjust.m = "bonferroni")
 
 write.csv(func_posthoc_time$T3_vs_T1, "results/posthoc_T3_vs_T1_func.csv")
 write.csv(func_posthoc_time$T6_vs_T1, "results/posthoc_T6_vs_T1_func.csv")
 write.csv(func_posthoc_time$T6_vs_T3, "results/posthoc_T6_vs_T3_func.csv")
-
 ```
 
 # Hierarchical clustering
@@ -286,7 +256,7 @@ names(metadata_clustering)[names(metadata_clustering) == "Manag.Straw"] <- "Land
 names(metadata_clustering)[names(metadata_clustering) == "Time"] <- "Time point"
 
 my_colour = list(
-  `Land-use + treatment` = c(GC = "#A3E4D7", GS = "#1ABC9C", WC = "#AED6F1", WS = "#2980B9"), 
+  `Land-use + treatment` = c(GC = "#7ca619", GS = "#0e6251", WC = "#c4e1f5", WS = "#2472a4"), 
   `Time point` = c(T1 = "#D5D8DC", T3 = "#808B96", T6 = "#2C3E50")
 )
 
@@ -312,14 +282,12 @@ save_pheatmap_pdf <- function(x, filename, width=10, height=7) {
 }
 save_pheatmap_pdf(pheatmap_PCA, "figures/heatmap_PCA.pdf")
 
-library(ggplotify)
 heatmap_PCA <- as.ggplot(pheatmap_PCA)
 
 ggarrange(PCA_TMM, heatmap_PCA, labels = c("a)", "b)"), ncol = 2)
 grid.arrange(PCA_TMM, heatmap_PCA,nrow=2)
 merge_PCA <- arrangeGrob(PCA_TMM, heatmap_PCA)
-ggsave("figures/merge_PCA.pdf", width = 60, height = 25, units = "cm")
-    
+ggsave("figures/FigS1.pdf", width = 60, height = 25, units = "cm")
 ```
 
 # PCA grass
@@ -351,10 +319,6 @@ PCA_grass <- ggplot() +
     theme(axis.title = element_text(size = 16)) +
     theme(legend.title = element_text(size = 16)) + 
     theme(legend.text = element_text(size = 16))
-
-ggsave("figures/PCA_grass.jpeg", width = 30, height = 20, units = "cm")
-ggsave("figures/PCA_grass.pdf", width = 30, height = 20, units = "cm")
-
 ```
 
 ## PERMANOVA grass
@@ -373,7 +337,6 @@ grass_posthoc_time <- pairwise.adonis2(All_TMM_grass~Time,data=All_meta_grass, p
 write.csv(grass_posthoc_time$T6_vs_T3, "results/posthoc_T6_vs_T3_grass.csv")
 write.csv(grass_posthoc_time$T3_vs_T1, "results/posthoc_T3_vs_T1_grass.csv")
 write.csv(grass_posthoc_time$T6_vs_T1, "results/posthoc_T6_vs_T1_grass.csv")
-
 ```
 
 # PCA wheat
@@ -405,10 +368,6 @@ PCA_wheat <- ggplot() +
     theme(axis.title = element_text(size = 16)) +
     theme(legend.title = element_text(size = 16)) + 
     theme(legend.text = element_text(size = 16))
-
-ggsave("figures/PCA_wheat.jpeg", width = 30, height = 20, units = "cm")
-ggsave("figures/PCA_wheat.pdf", width = 30, height = 20, units = "cm")
-
 ```
 
 ## PERMANOVA wheat
@@ -427,16 +386,6 @@ wheat_posthoc_time <- pairwise.adonis2(All_TMM_wheat~Time,data=All_meta_wheat, p
 write.csv(wheat_posthoc_time$T6_vs_T3, "results/posthoc_T6_vs_T3_wheat.csv")
 write.csv(wheat_posthoc_time$T3_vs_T1, "results/posthoc_T3_vs_T1_wheat.csv")
 write.csv(wheat_posthoc_time$T6_vs_T1, "results/posthoc_T6_vs_T1_wheat.csv")
-
-```
-
-### merge PCA grass, wheat
-```{r merge PCA, message=FALSE, warning=FALSE}
-
-ggarrange(PCA_grass, PCA_wheat, labels = c("a)", "b)"), ncol = 2, common.legend = FALSE, legend = "right", align = "hv", vjust = 2, hjust = -0.4)
-ggsave("figures/PCA_grass_wheat.jpeg", width = 35, height = 18, units = "cm")
-ggsave("figures/PCA_grass_wheat.pdf", width = 35, height = 18, units = "cm")
-
 ```
 
 # Taxonomy 
@@ -457,7 +406,6 @@ all(rownames(All_meta) == colnames(taxa_filt_count))
 tax_meta <- sample_data(All_meta)
 
 physeq_tax <- phyloseq(tax_count, tax_taxa, tax_meta)
-
 ```
 
 ## PCoA taxonomy
@@ -485,10 +433,6 @@ geom_hline(yintercept = 0, linetype=2) + xlab("PCoA1") + ylab("PCoA2") +  guides
     theme(legend.text = element_text(size = 16))
   
 print(plot_pcoa_tax)
-
-ggsave("figures/PCoA_TPM_taxa.jpeg", width = 30, height = 20, units = "cm")
-ggsave("figures/PCoA_TPM_taxa.pdf", width = 30, height = 20, units = "cm")
-
 ```
 
 ## PERMANOVA taxonomy
@@ -498,13 +442,6 @@ ggsave("figures/PCoA_TPM_taxa.pdf", width = 30, height = 20, units = "cm")
 bray_taxa <- phyloseq::distance(physeq_tax, method = "bray")
 meta.bray_taxa <- as(sample_data(physeq_tax), "data.frame")
 
-#permanova 1
-set.seed(5392)
-permanova_tax1 <- adonis(bray_taxa ~ Manag+Straw+Manag:Straw, 
-                   data=meta.bray_taxa, permutations=999, strata=meta.bray_taxa$Soils)
-permanova_tax1
-
-#permanova 2,
 set.seed(5392)
 permanova_tax2 <- adonis(bray_taxa ~ Manag+Straw+Time+Manag:Straw+Manag:Time+Straw:Time, 
                    data=meta.bray_taxa, permutations=999, strata = meta.bray_taxa$Soils)
@@ -517,7 +454,6 @@ taxa_posthoc_time <- pairwise.adonis2(bray_taxa~Time,data=meta.bray_taxa, p.adju
 write.csv(taxa_posthoc_time$T3_vs_T1, "results/posthoc_T3_vs_T1_taxa.csv")
 write.csv(taxa_posthoc_time$T6_vs_T1, "results/posthoc_T6_vs_T1_taxa.csv")
 write.csv(taxa_posthoc_time$T6_vs_T3, "results/posthoc_T6_vs_T3_taxa.csv")
-
 ```
 
 # Differential expression 
@@ -542,7 +478,6 @@ de_all <- DESeq(de_all)
 resultsNames(de_all)
 
 saveRDS(de_all, file = "results/de_all_model.rds")
-
 ```
 
 ```{r all GS, message=FALSE, warning=FALSE}
@@ -568,9 +503,6 @@ dim(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_all_GS.csv",row.names=T)
-
 ```
 
 ```{r all WS, message=FALSE, warning=FALSE}
@@ -593,9 +525,6 @@ res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_all_WS.csv",row.names=T)
-
 ```
 
 ```{r all WvsG C, message=FALSE, warning=FALSE}
@@ -616,9 +545,6 @@ res_signif <- dplyr::filter(as.data.frame(res),padj<0.05)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_all_WvsG_C.csv",row.names=T)
-
 ```
 
 ```{r WvsG S, message=FALSE, warning=FALSE}
@@ -640,9 +566,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_all_WvsG_S.csv",row.names=T)
-
 ```
 
 ```{r all interaction, message=FALSE, warning=FALSE}
@@ -665,9 +588,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_all_interaction.csv",row.names=T)
-
 ```
 
 ## wheat
@@ -693,7 +613,6 @@ d_wheat <- DESeq(d_wheat)
 resultsNames(d_wheat) # lists the coefficients
 
 saveRDS(d_wheat, file = "results/d_wheat_model.rds")
-
 ```
 
 ```{r WS T1, message=FALSE, warning=FALSE}
@@ -717,9 +636,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_WS_T1.csv",row.names=T)
-
 ```
 
 ```{r WS T6, message=FALSE, warning=FALSE}
@@ -740,9 +656,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_WS_T6.csv",row.names=T)
-
 ```
 
 ```{r WS T3, message=FALSE, warning=FALSE}
@@ -763,9 +676,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_WS_T3.csv",row.names=T)
-
 ```
 
 ```{r W T6vsT3 C, message=FALSE, warning=FALSE}
@@ -788,9 +698,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_W_T6vsT3_C.csv",row.names=T)
-
 ```
 
 ```{r W T3vsT1 S, message=FALSE, warning=FALSE}
@@ -812,9 +719,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_W_T3vsT1_S.csv",row.names=T)
-
 ```
 
 ```{r W T6vsT1 S,message=FALSE, warning=FALSE}
@@ -837,10 +741,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_W_T6vsT1_S.csv",row.names=T)
-
-
 ```
 
 ```{r W T6vsT3 S, message=FALSE, warning=FALSE}
@@ -863,9 +763,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_W_T6vsT3_S.csv",row.names=T)
-
 ```
 
 ## grass
@@ -915,9 +812,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_GS_T1.csv",row.names=T)
-
 ```
 
 ```{r GS T6, message=FALSE, warning=FALSE}
@@ -939,9 +833,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_GS_T6.csv",row.names=T)
-
 ```
 
 ```{r GS T3, message=FALSE, warning=FALSE}
@@ -963,9 +854,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_GS_T3.csv",row.names=T)
-
 ```
 
 ```{r G T6vsT3 C, message=FALSE, warning=FALSE}
@@ -988,9 +876,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_G_T6vsT3_C.csv",row.names=T)
-
 ```
 
 ```{r G T3vsT1 S, message=FALSE, warning=FALSE}
@@ -1012,9 +897,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_G_T3vsT1_S.csv",row.names=T)
-
 ```
 
 ```{r G T6vsT1 S, message=FALSE, warning=FALSE}
@@ -1037,9 +919,6 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_G_T6vsT1_S.csv",row.names=T)
-
 ```
 
 ```{r G T6vsT3 S, message=FALSE, warning=FALSE}
@@ -1062,7 +941,4 @@ nrow(res_signif)
 
 # sort
 res_signif <- res_signif[order(abs(res_signif$log2FoldChange),decreasing = T),] 
-
-write.csv(res_signif,"results/DE_G_T6vsT3_S.csv",row.names=T)
-
 ```
