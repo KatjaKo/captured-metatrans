@@ -15,7 +15,7 @@ library(tidyverse)
 library(treemapify)
 
 ```
-
+# Land-use effect
 ```{r land-use effect, message=FALSE, warning=FALSE}
 
 load("overall_de1.RData")
@@ -68,7 +68,7 @@ com_uni <- com_uni %>%
   left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
 
 ```
-
+# Straw effect
 ```{r effect of straw,  message=FALSE, warning=FALSE}
 
 str_w_s <- ws_all %>% 
@@ -129,7 +129,7 @@ top20_enz_fam <- str_com_uni %>%
 str_com_uni$Cond <- factor(str_com_uni$Cond, levels = c("G-specific", "Common", "W-specific"), labels = c("Grass-specific", "Common", "Wheat-specific"))
 
 ```
-
+# Plot
 ```{r plot, message=FALSE, warning=FALSE}
 
 str_com_uni %>%
@@ -153,10 +153,8 @@ str_com_uni %>%
   theme(strip.text.x = element_text(size = 12)) + theme(legend.text = element_text(size=12)) + guides(color = guide_legend(override.aes = list(size = 4)))
 
 ```
-
+## Save 
 ```{r save, message=FALSE, warning=FALSE}
-ggsave("figures/common_unique_DE.jpeg", 
-       width = 20, height = 15, units = "cm", dpi = 500)
-ggsave("figures/common_unique_DE.pdf", 
+ggsave("figures/Fig7.pdf", 
        width = 30, height = 15, units = "cm", dpi = 500)
 ```
