@@ -6,14 +6,12 @@ output: html_document
 ---
 
 ````{r packages}
-
 library(ggplot2)
 library(pheatmap)
 library(ggpubr)
 library(dplyr)
 library(tidyverse)
 library(treemapify)
-
 ```
 # Land-use effect
 ```{r land-use effect, message=FALSE, warning=FALSE}
