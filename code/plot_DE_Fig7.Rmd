@@ -64,7 +64,6 @@ colnames(com_uni) <- c("Transcript", "LU", "Cond")
 com_uni <- com_uni %>% 
   left_join(tdb_annot %>% rownames_to_column("Transcript"), by = "Transcript") %>%
   left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
-
 ```
 # Straw effect
 ```{r effect of straw,  message=FALSE, warning=FALSE}
@@ -125,7 +124,6 @@ top20_enz_fam <- str_com_uni %>%
   select(enz_family)
 
 str_com_uni$Cond <- factor(str_com_uni$Cond, levels = c("G-specific", "Common", "W-specific"), labels = c("Grass-specific", "Common", "Wheat-specific"))
-
 ```
 # Plot
 ```{r plot, message=FALSE, warning=FALSE}
@@ -149,7 +147,6 @@ str_com_uni %>%
   theme(legend.title = element_text(size = 12)) + 
   theme(legend.text = element_text(size = 12)) + 
   theme(strip.text.x = element_text(size = 12)) + theme(legend.text = element_text(size=12)) + guides(color = guide_legend(override.aes = list(size = 4)))
-
 ```
 ## Save 
 ```{r save, message=FALSE, warning=FALSE}
