@@ -1,5 +1,5 @@
 ---
-title: "figures_DE_overall"
+title: "DE_overall_analysis"
 author: "Katja K"
 output: html_document
 ---
@@ -8,11 +8,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Overall
-## Overview
-
-```{r overall}
-
+```{r packages}
 library(ggplot2)
 library(pheatmap)
 library(ggpubr)
@@ -20,14 +16,15 @@ library(dplyr)
 library(tidyverse)
 library(treemapify)
 library(ggplotify)
+````
 
+# Overall DE
+```{r load data}
 load("overall_de1.RData")
-
 ```
 
 ## Effect of Straw in Wheat
-
-```{r straw in wheat}
+```{r straw in wheat, message=FALSE, warning=FALSE}
 
 ws_all_tdb <- ws_all %>% 
   filter(condition == "Straw") %>%
@@ -41,13 +38,9 @@ treemap_WS <- ggplot(data = ws_all_tdb, aes(fill = mean_log2FC, area = num_sig, 
   geom_treemap_text(colour ="white", place = "centre") +
   theme_pubclean(base_size = 12) +
   scale_fill_gradient(low = "#A9CCE3", high = "#1B4F72", limits = c(9, 30)) + labs(fill = "Mean log2 fold-change")
-
-ggsave("figures/treemap_WS.jpeg", width = 20, height = 15, units = "cm")
-ggsave("figures/treemap_WS.pdf", width = 20, height = 15, units = "cm")
-
 ```
 
-```{r}
+```{r ws counts, message=FALSE, warning=FALSE}
 
 ws_all %>% 
   filter(condition == "Straw") %>%
@@ -59,7 +52,7 @@ head(ws_all_tdb, 10)
 
 ## Effect of Straw in Grass
 
-```{r straw in grass}
+```{r straw in grass, message=FALSE, warning=FALSE}
 
 gs_all_tdb <- gs_all %>% 
   filter(condition == "Straw") %>%
@@ -72,14 +65,10 @@ treemap_GS <- ggplot(data = gs_all_tdb, aes(fill = mean_log2FC, area = num_sig, 
   geom_treemap() +
   geom_treemap_text(colour ="white", place = "centre") +
   theme_pubclean(base_size = 12) +
-  scale_fill_gradient(low = "#A3E4D7", high = "#117864", limits = c(9, 30)) + labs(fill = "Mean log2 fold-change")
-
-ggsave("figures/treemap_GS.jpeg", width = 20, height = 15, units = "cm")
-ggsave("figures/treemap_GS.pdf", width = 20, height = 15, units = "cm")
-
+  scale_fill_gradient(low = "#bde657", high = "#0b4c3f", limits = c(9, 30)) + labs(fill = "Mean log2 fold-change")
 ```
 
-```{r}
+```{r gs counts, message=FALSE, warning=FALSE}
 
 gs_all %>% 
   filter(condition == "Straw") %>%
@@ -93,7 +82,7 @@ head(gs_all_tdb, 10)
 ## Within control
 ### Wheat
 
-```{r land use C wheat}
+```{r land use C wheat, message=FALSE, warning=FALSE}
 
 lu_c_all_tdb <- lu_c_all %>% 
   filter(condition == "Wheat") %>%
@@ -107,13 +96,9 @@ treemap_W_C <- ggplot(data = lu_c_all_tdb, aes(fill = mean_log2FC, area = num_si
   geom_treemap_text(colour ="white", place = "centre") +
   theme_pubclean(base_size = 12) +
   scale_fill_gradient(low = "#A9CCE3", high = "#1B4F72", limits = c(2,35)) + labs(fill = "Mean log2 fold-change")
-
-ggsave("figures/treemap_LU_WC.jpeg", width = 20, height = 15, units = "cm")
-ggsave("figures/treemap_LU_WC.pdf", width = 20, height = 15, units = "cm")
-
 ```
 
-```{r}
+```{r wheat lu count, message=FALSE, warning=FALSE}
 
 lu_c_all %>% 
   filter(condition == "Wheat") %>%
@@ -125,7 +110,7 @@ head(lu_c_all_tdb, 10)
 
 ### Grass
 
-```{r land use C grass}
+```{r land use C grass, message=FALSE, warning=FALSE}
 
 lu_c_all_tdb <- lu_c_all %>% 
   filter(condition == "Grass") %>%
@@ -138,14 +123,10 @@ treemap_G_C <- ggplot(data = lu_c_all_tdb, aes(fill = mean_log2FC, area = num_si
   geom_treemap() +
   geom_treemap_text(colour ="white", place = "centre") +
   theme_pubclean(base_size = 12) +
-  scale_fill_gradient(low =  "#A3E4D7", high = "#117864", limits = c(2,35)) + labs(fill = "Mean log2 fold-change")
-
-ggsave("figures/treemap_LU_GC.jpeg", width = 20, height = 15, units = "cm")
-ggsave("figures/treemap_LU_GC.pdf", width = 20, height = 15, units = "cm")
-
+  scale_fill_gradient(low =  "#bde657", high = "#0b4c3f", limits = c(2,35)) + labs(fill = "Mean log2 fold-change")
 ```
 
-```{r}
+```{r grass lu count, message=FALSE, warning=FALSE}
 
 lu_c_all %>% 
  filter(condition == "Grass") %>%
@@ -157,15 +138,12 @@ head(lu_c_all_tdb, 10)
 
 ### merge treemaps 
 
-```{r merge treemaps}
+```{r merge treemaps, message=FALSE, warning=FALSE}
 
 ggarrange(treemap_WS, treemap_GS, labels = c("a)", "b)"), nrow = 2)
-
-ggsave("figures/treemap_straw_all.jpeg", width = 25, height = 20, units = "cm")
-ggsave("figures/treemap_straw_all.pdf", width = 25, height = 25, units = "cm")
+ggsave("figures/Fig6.pdf", width = 25, height = 25, units = "cm")
 
 ```
-
 
 #### Heatmap
 
@@ -186,10 +164,9 @@ save_pheatmap_pdf <- function(x, filename, width=10, height=7) {
     grid::grid.draw(x$gtable)
     dev.off()
 }
-
 ```
 
-```{r heatmap wheat}
+```{r heatmap wheat, message=FALSE, warning=FALSE}
 
 tmm_mat <- read.table("SeqCap_filt_gene.TMM.EXPR.matrix", header = T, row.names = 1, check.names = F)
 sample_meta <-  read.table("All.samples", header = T, check.names = F)
@@ -215,7 +192,7 @@ lu_c_tmm_egg_cog_lev2$cog_lev2 <- NULL
 row.names(lu_c_tmm_egg_cog_lev2) <- temp
 
 my_colour = list(
-    `Land-use` = c(G = "#A3E4D7", W = "#AED6F1"), 
+    `Land-use` = c(G = "#0e6251", W = "#2472a4"), 
     `Time point` = c(T1 = "#D5D8DC", T3 = "#808B96", T6 = "#2C3E50")
 )
 
@@ -238,13 +215,9 @@ row.names(lu_c_tmm_egg_cog_lev2) <- temp
 
 pheatmap_LU_C <- pheatmap(lu_c_tmm_egg_cog_lev2,  scale = "row", annotation_colors = my_colour, show_colnames = F, border_color=NA, annotation_col=sm_c[,c("Land-use", "Time point"),drop=F], labels_row = make_bold_names(lu_c_tmm_egg_cog_lev2, rownames, c("Carbohydrate transport and metabolism")),  col = colorRampPalette(c("navy", "white", "firebrick3"))(50), cluster_cols = F, fontsize=14)
 print(pheatmap_LU_C)
-
-save_pheatmap_png(pheatmap_LU_C, "figures/heatmap_LU_C_time.png")
-save_pheatmap_pdf(pheatmap_LU_C, "figures/heatmap_LU_C_time.pdf")
-
 ```
 
-```{r heatmap ID wheat}
+```{r heatmap ID wheat, message=FALSE, warning=FALSE}
 
 lu_c_tmm_egg_cog_enz <- lu_c_tmm_egg %>%
   rownames_to_column(var = "Transcript") %>%
@@ -261,7 +234,7 @@ lu_c_tmm_egg_cog_enz <- as.data.frame(lu_c_tmm_egg_cog_enz)
 row.names(lu_c_tmm_egg_cog_enz) <- temp
 
 my_colour = list(
-    `Land-use`  = c(G = "#A3E4D7", W = "#AED6F1"),
+    `Land-use`  = c(G = "#7ca619", W = "#c4e1f5"),
    `Time point` = c(T1 = "#D5D8DC", T3 = "#808B96", T6 = "#2C3E50")
 )
 
@@ -271,16 +244,12 @@ row.names(lu_c_tmm_egg_cog_enz) <- temp
 
 pheatmap_LU_C_enzID <- pheatmap(lu_c_tmm_egg_cog_enz, border_color=NA, annotation_col=sm_c[,c("Land-use", "Time point"),drop=F],annotation_legend=T, scale = "row", annotation_colors = my_colour, show_colnames = F, cluster_cols =  F, col = colorRampPalette(c("navy", "white", "firebrick3"))(50),fontsize=14)
 print(pheatmap_LU_C_enzID)
-
-save_pheatmap_png(pheatmap_LU_C_enzID, "figures/heatmap_LU_C_enzID_time.png")
-save_pheatmap_pdf(pheatmap_LU_C_enzID, "figures/heatmap_LU_C_enzID_time.pdf")
-
 ```
 
 ## Within straw
 ### Wheat
 
-```{r land use S wheat}
+```{r land use S wheat, message=FALSE, warning=FALSE}
 
 lu_s_all_tdb <- lu_s_all %>% 
   filter(condition == "Wheat") %>%
@@ -294,15 +263,11 @@ treemap_W_S <- ggplot(data = lu_s_all_tdb, aes(fill = mean_log2FC, area = num_si
   geom_treemap_text(colour ="white", place = "centre") +
   theme_pubclean(base_size = 12) +
   scale_fill_gradient(low = "#A9CCE3", high = "#1B4F72", limits = c(2,35))  + labs(fill = "Mean log2 fold-change")
-
-ggsave("figures/treemap_LU_WS.jpeg", width = 20, height = 15, units = "cm")
-ggsave("figures/treemap_LU_WS.pdf", width = 20, height = 15, units = "cm")
-
 ```
 
 ### Grass
 
-```{r land use C straw}
+```{r land use C straw, message=FALSE, warning=FALSE}
 
 lu_s_all_tdb <- lu_s_all %>% 
   filter(condition == "Grass") %>%
@@ -316,26 +281,19 @@ treemap_G_S <- ggplot(data = lu_s_all_tdb, aes(fill = mean_log2FC, area = num_si
   geom_treemap_text(colour ="white", place = "centre") +
   theme_pubclean(base_size = 12) +
   scale_fill_gradient(low =  "#A3E4D7", high = "#117864", limits = c(2,35)) + labs(fill = "Mean log2 fold-change")
-
-ggsave("figures/treemap_LU_GS.jpeg", width = 20, height = 15, units = "cm")
-ggsave("figures/treemap_LU_GS.pdf", width = 20, height = 15, units = "cm")
-
 ```
 
 ### merge treemaps LU
 
-```{r merge treemaps LU}
+```{r merge treemaps LU, message=FALSE, warning=FALSE}
 
 ggarrange(treemap_W_C, treemap_G_C, treemap_W_S, treemap_G_S, labels = c("a)", "b)", "c)", "d)"), ncol = 2, nrow = 2)
-
-ggsave("figures/treemap_LU_all.jpeg", width = 25, height = 20, units = "cm")
-ggsave("figures/treemap_LU_all.pdf", width = 35, height = 25, units = "cm")
-
+ggsave("figures/FigS3.pdf", width = 35, height = 25, units = "cm")
 ```
 
 #### Heatmap
 
-```{r heatmap grass}
+```{r heatmap grass, message=FALSE, warning=FALSE}
 
 tmm_mat <- read.table("SeqCap_filt_gene.TMM.EXPR.matrix", header = T, row.names = 1, check.names = F)
 sample_meta <-  read.table("All.samples", header = T, check.names = F)
@@ -360,7 +318,7 @@ lu_s_tmm_egg_cog_lev2$cog_lev2 <- NULL
 row.names(lu_s_tmm_egg_cog_lev2) <- temp
 
 my_colour = list(
-   `Land-use` = c(G = "#1ABC9C", W = "#2980B9"), 
+    `Land-use` = c(G = "#0e6251", W = "#2472a4"), 
     `Time point` = c(T1 = "#D5D8DC", T3 = "#808B96", T6 = "#2C3E50")
 )
 
@@ -369,13 +327,9 @@ lu_s_tmm_egg_cog_lev2 <- lu_s_tmm_egg_cog_lev2[sm_c$sampleID]
 row.names(lu_s_tmm_egg_cog_lev2) <- temp
 
 pheatmap_LU_S <- pheatmap(lu_s_tmm_egg_cog_lev2, border_color=NA, annotation_col=sm_c[,c("Land-use", "Time point"),drop=F],annotation_legend=T, scale = "row", annotation_colors = my_colour, show_colnames = F, labels_row = make_bold_names(lu_s_tmm_egg_cog_lev2, rownames, c("Carbohydrate transport and metabolism")),  cluster_cols =  F, col = colorRampPalette(c("navy", "white", "firebrick3"))(50), fontsize = 14)
-
-save_pheatmap_png(pheatmap_LU_S, "figures/heatmap_LU_S_time.png")
-save_pheatmap_pdf(pheatmap_LU_S, "figures/heatmap_LU_S_time.pdf")
-
 ```
 
-```{r heatmap ID grass}
+```{r heatmap ID grass, message=FALSE, warning=FALSE}
 
 lu_s_tmm_egg_cog_enz <- lu_s_tmm_egg %>%
   rownames_to_column(var = "Transcript") %>%
@@ -391,7 +345,7 @@ lu_s_tmm_egg_cog_enz$cog_enzid <- NULL
 row.names(lu_s_tmm_egg_cog_enz) <- temp
 
 my_colour = list(
-    `Land-use` = c(G = "#1ABC9C", W = "#2980B9"), 
+    `Land-use` = c(G = "#0e6251", W = "#2472a4"), 
     `Time point` = c(T1 = "#D5D8DC", T3 = "#808B96", T6 = "#2C3E50")
 )
 
@@ -400,15 +354,11 @@ lu_s_tmm_egg_cog_enz <- lu_s_tmm_egg_cog_enz[sm_c$sampleID]
 row.names(lu_s_tmm_egg_cog_enz) <- temp
 
 pheatmap_LU_S_enzID <- pheatmap(lu_s_tmm_egg_cog_enz, border_color=NA, annotation_col=sm_c[,c("Land-use", "Time point"),drop=F],annotation_legend=T, scale = "row", annotation_colors = my_colour, cluster_cols = F, show_colnames = F,col = colorRampPalette(c("navy", "white", "firebrick3"))(50), fontsize = 14)
-
-save_pheatmap_png(pheatmap_LU_S_enzID, "figures/heatmap_LU_S_enzID_time.png")
-save_pheatmap_pdf(pheatmap_LU_S_enzID, "figures/heatmap_LU_S_enzID_time.pdf")
-
 ```
 
 ### merge heatmap
 
-```{r merge heatmap}
+```{r merge heatmap, message=FALSE, warning=FALSE}
 
 p1 <- as.ggplot(pheatmap_LU_C)
 p2 <- as.ggplot(pheatmap_LU_S)
@@ -416,12 +366,9 @@ p3 <- as.ggplot(pheatmap_LU_C_enzID)
 p4 <- as.ggplot(pheatmap_LU_S_enzID)
 
 ggarrange(p1, p2, p3, p4, labels = c("a)", "b)", "c)", "d)"), ncol = 2, nrow = 2, common.legend = T, legend="right")
-
-ggsave("figures/heatmaps_LU_all.jpeg", width = 50, height = 28, units = "cm", dpi=500)
 ggsave("figures/heatmaps_LU_all.pdf", width = 55, height = 33, units = "cm", dpi=500)
 
 ggarrange(p3, p4, labels = c("a)", "b)"), ncol = 2, nrow = 1, common.legend = T, legend="right")
-ggsave("figures/heatmaps_LU_EZid.pdf", width = 60, height = 25, units = "cm", dpi=500)
-
+ggsave("figures/Fig5.pdf", width = 60, height = 25, units = "cm", dpi=500)
 ```
 
