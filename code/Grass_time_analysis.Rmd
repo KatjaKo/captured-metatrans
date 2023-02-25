@@ -1,0 +1,598 @@
+---
+title: "Improvised plots Grass DE"
+author: "Lokesh"
+date: "`r paste0('<b>Lokesh Mano</b> • ',format(Sys.time(), '%d-%b-%Y'))`"
+output: 
+  rmarkdown::html_document:
+    code_folding: 'hide'
+    toc: true
+    toc_float: true
+    smart: true
+    number_sections: true
+    highlight: tango
+    self_contained: true
+    smaller: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r wrap-hook, include=FALSE}
+# Ignore this part! This is only for formatting this document in the html file!
+library(knitr)
+hook_output = knit_hooks$get('output')
+knit_hooks$set(output = function(x, options) {
+  # this hook is used only when the linewidth option is not NULL
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    # any lines wider than n should be wrapped
+    if (any(nchar(x) > n)) x = strwrap(x, width = n)
+    x = paste(x, collapse = '\n')
+  }
+  hook_output(x, options)
+})
+```
+
+# Overall 
+
+## Overview
+
+```{r, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(pheatmap)
+library(ggpubr)
+library(dplyr)
+library(tidyverse)
+library(ComplexHeatmap)
+library(treemapify)
+
+load("grass_de1.RData")
+silva_hits <- read.table("Trinity_ass_200_vs_Sil132DB_all_NEW.hits")
+
+gs_t1_annot <- de_gs_t1 %>% 
+  mutate(abs_fc = abs(log2FoldChange))%>%
+  mutate(condition = ifelse(log2FoldChange > 0, "Straw", "Control")) %>%
+  mutate(direction = ifelse(log2FoldChange > 0, "Positive", "Negative")) %>%
+  rownames_to_column("Transcript") %>% 
+  left_join(tdb_annot %>% rownames_to_column("Transcript"), by = "Transcript") %>%
+  left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
+
+gs_t1_annot$enz_class <- factor(gs_t1_annot$enz_class)
+gs_t1_annot$enz_family <- factor(gs_t1_annot$enz_family)
+#ggplot(gs_all_annot) + geom_bar(aes(x = condition, fill = enz_class), stat = "count")
+
+ovr_plot_t1 <- gs_t1_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t1$test <- "Straw-T1"
+
+gs_t3_annot <- de_gs_t3 %>% 
+  mutate(abs_fc = abs(log2FoldChange))%>%
+  mutate(condition = ifelse(log2FoldChange > 0, "Straw", "Control")) %>%
+  mutate(direction = ifelse(log2FoldChange > 0, "Positive", "Negative")) %>%
+  rownames_to_column("Transcript") %>% 
+  left_join(tdb_annot %>% rownames_to_column("Transcript"), by = "Transcript") %>%
+  left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
+
+ovr_plot_t3 <- gs_t3_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t3$test <- "Straw-T3"
+
+gs_t6_annot <- de_gs_t6 %>% 
+  mutate(abs_fc = abs(log2FoldChange))%>%
+  mutate(condition = ifelse(log2FoldChange > 0, "Straw", "Control")) %>%
+  mutate(direction = ifelse(log2FoldChange > 0, "Positive", "Negative")) %>%
+  rownames_to_column("Transcript") %>% 
+  left_join(tdb_annot %>% rownames_to_column("Transcript"), by = "Transcript") %>%
+  left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
+
+ovr_plot_t6 <- gs_t6_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6$test <- "Straw-T6"
+
+gs_t6vt1_annot <- de_gs_t6vt1 %>% 
+  mutate(abs_fc = abs(log2FoldChange))%>%
+  mutate(condition = ifelse(log2FoldChange > 0, "T6", "T1")) %>%
+  mutate(direction = ifelse(log2FoldChange > 0, "Positive", "Negative")) %>%
+  rownames_to_column("Transcript") %>% 
+  left_join(tdb_annot %>% rownames_to_column("Transcript"), by = "Transcript") %>%
+  left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
+
+ovr_plot_t6vt1_gs <- gs_t6vt1_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6vt1_gs$test <- "T6vT1-Straw"
+
+gs_t6vt3_annot <- de_gs_t6vt3 %>% 
+  mutate(abs_fc = abs(log2FoldChange))%>%
+  mutate(condition = ifelse(log2FoldChange > 0, "T6", "T3")) %>%
+  mutate(direction = ifelse(log2FoldChange > 0, "Positive", "Negative")) %>%
+  rownames_to_column("Transcript") %>% 
+  left_join(tdb_annot %>% rownames_to_column("Transcript"), by = "Transcript") %>%
+  left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
+
+ovr_plot_t6vt3_gs <- gs_t6vt3_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6vt3_gs$test <- "T6vT3-Straw"
+
+gc_t6vt3_annot <- de_gc_t6vt3 %>% 
+  mutate(abs_fc = abs(log2FoldChange))%>%
+  mutate(condition = ifelse(log2FoldChange > 0, "T6", "T3")) %>%
+  mutate(direction = ifelse(log2FoldChange > 0, "Positive", "Negative")) %>%
+  rownames_to_column("Transcript") %>% 
+  left_join(tdb_annot %>% rownames_to_column("Transcript"), by = "Transcript") %>%
+  left_join(taxa_annot %>% rownames_to_column("Transcript"), by = "Transcript") 
+
+ovr_plot_t6vt3_gc <- gc_t6vt3_annot %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  group_by(condition, direction) %>%
+  summarise(num_sig= n(), sum_mean = sum(baseMean), sum_FC = sum(log2FoldChange))
+ovr_plot_t6vt3_gc$test <- "T6vT3-Control"
+
+ovr_nsig_data <- rbind(ovr_plot_t1, ovr_plot_t3, ovr_plot_t6, ovr_plot_t6vt1_gs, ovr_plot_t6vt3_gs, ovr_plot_t6vt3_gc)
+
+ovr_nsig_data <- ovr_nsig_data %>%
+  mutate(Main_test = ifelse(any(grepl("Straw-", test)), "Straw", "Time"))
+
+ovr_nsig_data$condition <- factor(ovr_nsig_data$condition, levels = c("Control", "Straw", "T1", "T3", "T6"))
+  
+ggplot(data = ovr_nsig_data) +
+  geom_bar(aes(x = test, y = log10(num_sig), fill = condition),
+           position = "dodge",stat = "identity") +
+  geom_text(aes(test, log10(num_sig), label=num_sig, group = condition),
+            vjust = 1.5, size=4, position = position_dodge(width = .9)) +
+  facet_wrap(~Main_test, scales = "free_x") +
+  scale_fill_manual(values = c("#F5B041", "#6C3483", "#D5D8DC", "#808B96", "#2C3E50")) +
+  ylab("Number of significant transcripts") +
+  theme_pubclean(base_size = 12) +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.x = element_blank())
+  
+  
+```
+
+## Effect of Straw in T1
+
+```{r, message=FALSE, warning=FALSE}
+gs_t1_tdb <- gs_t1 %>% 
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "Straw") %>%
+  group_by(enz_class, enz_family) %>%
+  summarise(num_sig= n(), mean_log2FC = mean(abs(log2FoldChange))) %>%
+  filter(!is.na(enz_class)) %>%
+  arrange(desc(num_sig))
+
+ggplot(data = gs_t1_tdb, aes(fill = mean_log2FC, area = num_sig, label= enz_family, subgroup=enz_class)) +
+  geom_treemap() +
+  geom_treemap_text(colour ="white", place = "centre") +
+  theme_pubclean(base_size = 12) +
+  scale_fill_gradient(low = "#A3E4D7", high = "#117864")
+```
+
+There were `110` transcripts in total that were significantly abundant in straw compared to control at T1! Out of which `51` had matchesto the TDB. The top CAZy families are listed below:
+
+```{r, message=FALSE, warning=FALSE}
+#gs_all %>% 
+#  filter(condition == "Straw") %>%
+#  dim()
+#sum(gs_all_tdb$num_sig)
+kable(head(gs_t1_tdb, 10))
+```
+
+### Heatmap of COG
+
+```{r, message=FALSE, warning=FALSE}
+tmm_mat <- read.table("SeqCap_gene.TMM.EXPR.matrix", header = T, row.names = 1, check.names = F)
+sample_meta <-  read.table("All.samples", header = T, check.names = F)
+sm_w_t1 <- sample_meta %>% 
+  filter(Time == "T1") %>% 
+  filter(Manag == "G") %>%
+  arrange(Straw)
+
+  
+gs_t1_egg <- gs_t1 %>% 
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(!is.na(cog_lev1))
+gs_t1_tmm_egg <- tmm_mat[gs_t1_egg$Transcript, (colnames(tmm_mat) %in% sm_w_t1$Samples)]
+
+gs_t1_tmm_egg_cog_lev2 <- gs_t1_tmm_egg %>%
+  rownames_to_column(var = "Transcript") %>%
+  gather(Sample_ID, count, -Transcript) %>% 
+  left_join(gs_t1_egg, by = "Transcript") %>% 
+  group_by(Sample_ID, cog_lev2) %>%
+  summarise(sum_count = sum(count)) %>%
+  spread(Sample_ID, sum_count)
+temp <- gs_t1_tmm_egg_cog_lev2$cog_lev2
+gs_t1_tmm_egg_cog_lev2$cog_lev2 <- NULL
+row.names(gs_t1_tmm_egg_cog_lev2) <- temp
+
+my_colour = list(
+     Straw = c(C = "#F5B041", S = "#6C3483")
+)
+
+pheatmap(gs_t1_tmm_egg_cog_lev2, border_color=NA, annotation_col=sm_w_t1[,c("Straw"),drop=F],annotation_legend=T, scale = "row", annotation_colors = my_colour, show_colnames = F, cluster_cols = F)
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+gs_t1_tmm_egg_cog_enz <- gs_t1_tmm_egg %>%
+  rownames_to_column(var = "Transcript") %>%
+  gather(Sample_ID, count, -Transcript) %>% 
+  left_join(gs_t1_egg, by = "Transcript") %>% 
+  filter(cog_lev2 == "Carbohydrate transport and metabolism") %>%
+  group_by(Sample_ID, cog_enzid) %>%
+  summarise(sum_count = sum(count)) %>%
+  spread(Sample_ID, sum_count)
+
+temp <- gs_t1_tmm_egg_cog_enz$cog_enzid
+gs_t1_tmm_egg_cog_enz$cog_enzid <- NULL
+row.names(gs_t1_tmm_egg_cog_enz) <- temp
+
+my_colour = list(
+     Straw = c(C = "#F5B041", S = "#6C3483")
+)
+
+pheatmap(gs_t1_tmm_egg_cog_enz, border_color=NA, annotation_col=sm_w_t1[,c("Straw"),drop=F],annotation_legend=T, scale = "row", annotation_colors = my_colour, show_colnames = F, cluster_cols = F)
+```
+
+
+## Effect of Straw in T3
+
+```{r, message=FALSE, warning=FALSE}
+gs_t3_tdb <- gs_t3 %>% 
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "Straw") %>%
+  group_by(enz_class, enz_family) %>%
+  summarise(num_sig= n(), mean_log2FC = mean(abs(log2FoldChange))) %>%
+  filter(!is.na(enz_class)) %>%
+  arrange(desc(num_sig))
+
+ggplot(data = gs_t3_tdb, aes(fill = mean_log2FC, area = num_sig, label= enz_family, subgroup=enz_class)) +
+  geom_treemap() +
+  geom_treemap_text(colour ="white", place = "centre") +
+  theme_pubclean(base_size = 12) +
+  scale_fill_gradient(low = "#A3E4D7", high = "#117864")
+```
+
+There were `97` transcripts in total that were significantly abundant in straw compared to control at t3! Out of which `52` had matches to the TDB. The top CAZy families are listed below:
+
+```{r, message=FALSE, warning=FALSE}
+#gs_all %>% 
+#  filter(condition == "Straw") %>%
+#  dim()
+#sum(gs_all_tdb$num_sig)
+kable(head(gs_t3_tdb, 10))
+```
+
+### Heatmap of COG
+
+```{r, message=FALSE, warning=FALSE}
+#tmm_mat <- read.table("SeqCap_gene.TMM.EXPR.matrix", header = T, row.names = 1, check.names = F)
+#sample_meta <-  read.table("All.samples", header = T, check.names = F)
+sm_w_t3 <- sample_meta %>% 
+  filter(Time == "T3") %>% 
+  filter(Manag == "G") %>%
+  arrange(Straw)
+
+  
+gs_t3_egg <- gs_t3 %>% 
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(!is.na(cog_lev1))
+gs_t3_tmm_egg <- tmm_mat[gs_t3_egg$Transcript, (colnames(tmm_mat) %in% sm_w_t3$Samples)]
+
+gs_t3_tmm_egg_cog_lev2 <- gs_t3_tmm_egg %>%
+  rownames_to_column(var = "Transcript") %>%
+  gather(Sample_ID, count, -Transcript) %>% 
+  left_join(gs_t3_egg, by = "Transcript") %>% 
+  group_by(Sample_ID, cog_lev2) %>%
+  summarise(sum_count = sum(count)) %>%
+  spread(Sample_ID, sum_count)
+temp <- gs_t3_tmm_egg_cog_lev2$cog_lev2
+gs_t3_tmm_egg_cog_lev2$cog_lev2 <- NULL
+row.names(gs_t3_tmm_egg_cog_lev2) <- temp
+
+my_colour = list(
+     Straw = c(C = "#F5B041", S = "#6C3483")
+)
+
+pheatmap(gs_t3_tmm_egg_cog_lev2, border_color=NA, annotation_col=sm_w_t3[,c("Straw"),drop=F],annotation_legend=T, scale = "row", annotation_colors = my_colour, show_colnames = F, cluster_cols = F)
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+gs_t3_tmm_egg_cog_enz <- gs_t3_tmm_egg %>%
+  rownames_to_column(var = "Transcript") %>%
+  gather(Sample_ID, count, -Transcript) %>% 
+  left_join(gs_t3_egg, by = "Transcript") %>% 
+  filter(cog_lev2 == "Carbohydrate transport and metabolism") %>%
+  group_by(Sample_ID, cog_enzid) %>%
+  summarise(sum_count = sum(count)) %>%
+  spread(Sample_ID, sum_count)
+
+temp <- gs_t3_tmm_egg_cog_enz$cog_enzid
+gs_t3_tmm_egg_cog_enz$cog_enzid <- NULL
+row.names(gs_t3_tmm_egg_cog_enz) <- temp
+
+my_colour = list(
+     Straw = c(C = "#F5B041", S = "#6C3483")
+)
+
+pheatmap(gs_t3_tmm_egg_cog_enz, border_color=NA, annotation_col=sm_w_t3[,c("Straw"),drop=F],annotation_legend=T, scale = "row", annotation_colors = my_colour, show_colnames = T, cluster_cols = F)
+```
+
+## Effect of Straw in T6
+
+```{r, message=FALSE, warning=FALSE}
+gs_t6_tdb <- gs_t6 %>% 
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "Straw") %>%
+  group_by(enz_class, enz_family) %>%
+  summarise(num_sig= n(), mean_log2FC = mean(abs(log2FoldChange))) %>%
+  filter(!is.na(enz_class)) %>%
+  arrange(desc(num_sig))
+
+ggplot(data = gs_t6_tdb, aes(fill = mean_log2FC, area = num_sig, label= enz_family, subgroup=enz_class)) +
+  geom_treemap() +
+  geom_treemap_text(colour ="white", place = "centre") +
+  theme_pubclean(base_size = 12) +
+  scale_fill_gradient(low = "#A3E4D7", high = "#117864")
+```
+
+There were `66` transcripts in total that were significantly abundant in straw compared to control at t6! Out of which `47` had matches to the TDB. The top CAZy families are listed below:
+
+```{r, message=FALSE, warning=FALSE}
+#gs_all %>% 
+#  filter(condition == "Straw") %>%
+#  dim()
+#sum(gs_all_tdb$num_sig)
+kable(head(gs_t6_tdb, 10))
+```
+
+### Heatmap of COG
+
+```{r, message=FALSE, warning=FALSE}
+#tmm_mat <- read.table("SeqCap_gene.TMM.EXPR.matrix", header = T, row.names = 1, check.names = F)
+#sample_meta <-  read.table("All.samples", header = T, check.names = F)
+sm_g_t6 <- sample_meta %>% 
+  filter(Time == "T6") %>% 
+  filter(Manag == "G") %>%
+  arrange(Straw)
+
+  
+gs_t6_egg <- gs_t6 %>% 
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(!is.na(cog_lev1))
+gs_t6_tmm_egg <- tmm_mat[gs_t6_egg$Transcript, (colnames(tmm_mat) %in% sm_g_t6$Samples)]
+
+gs_t6_tmm_egg_cog_lev2 <- gs_t6_tmm_egg %>%
+  rownames_to_column(var = "Transcript") %>%
+  gather(Sample_ID, count, -Transcript) %>% 
+  left_join(gs_t6_egg, by = "Transcript") %>% 
+  group_by(Sample_ID, cog_lev2) %>%
+  summarise(sum_count = sum(count)) %>%
+  spread(Sample_ID, sum_count)
+temp <- gs_t6_tmm_egg_cog_lev2$cog_lev2
+gs_t6_tmm_egg_cog_lev2$cog_lev2 <- NULL
+row.names(gs_t6_tmm_egg_cog_lev2) <- temp
+
+my_colour = list(
+     Straw = c(C = "#F5B041", S = "#6C3483")
+)
+
+pheatmap(gs_t6_tmm_egg_cog_lev2[!(rowSums(gs_t6_tmm_egg_cog_lev2)== 0), ], border_color=NA, annotation_col=sm_g_t6[,c("Straw"),drop=F],annotation_legend=T, scale = "row", annotation_colors = my_colour, show_colnames = F, cluster_cols = F)
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+gs_t6_tmm_egg_cog_enz <- gs_t6_tmm_egg %>%
+  rownames_to_column(var = "Transcript") %>%
+  gather(Sample_ID, count, -Transcript) %>% 
+  left_join(gs_t6_egg, by = "Transcript") %>% 
+  filter(cog_lev2 == "Carbohydrate transport and metabolism") %>%
+  group_by(Sample_ID, cog_enzid) %>%
+  summarise(sum_count = sum(count)) %>%
+  spread(Sample_ID, sum_count)
+
+temp <- gs_t6_tmm_egg_cog_enz$cog_enzid
+gs_t6_tmm_egg_cog_enz$cog_enzid <- NULL
+row.names(gs_t6_tmm_egg_cog_enz) <- temp
+
+my_colour = list(
+     Straw = c(C = "#F5B041", S = "#6C3483")
+)
+
+pheatmap(gs_t6_tmm_egg_cog_enz, border_color=NA, annotation_col=sm_g_t6[,c("Straw"),drop=F],annotation_legend=T, scale = "row", annotation_colors = my_colour, show_colnames = T, cluster_cols = F)
+```
+
+## Taxonomy in Straw at different times
+
+Here I try to make the taxonomy plot by combining the taxonomies that are significantly different in the 3 time points while comparing straw samples to the control! 
+
+```{r, message=FALSE, warning=FALSE}
+gs_t1_taxa <- gs_t1 %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "Straw") %>%
+  group_by(Kingdom, Phylum) %>%
+  filter(!is.na(Phylum)) %>%
+  summarise(num_sig= n())
+gs_t1_taxa$time <- "T1"
+
+gs_t3_taxa <- gs_t3 %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "Straw") %>%
+  group_by(Kingdom, Phylum) %>%
+  filter(!is.na(Phylum)) %>%
+  summarise(num_sig= n())
+gs_t3_taxa$time <- "T3"
+
+gs_t6_taxa <- gs_t6 %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "Straw") %>%
+  group_by(Kingdom, Phylum) %>%
+  filter(!is.na(Phylum)) %>%
+  summarise(num_sig= n())
+gs_t6_taxa$time <- "T6"
+
+gs_taxa_allT <- rbind(gs_t1_taxa, gs_t3_taxa, gs_t6_taxa)
+gs_taxa_allT$Kingdom <- factor(gs_taxa_allT$Kingdom, levels = c("Bacteria", "Eukaryota", "unknown"))
+
+rem_phyla <- gs_taxa_allT %>% 
+  group_by(Phylum) %>%
+  summarise(tot_sig= sum(num_sig)) %>%
+  filter(tot_sig > 5)
+
+gs_taxa_allT <- gs_taxa_allT %>% 
+  filter(Phylum %in% rem_phyla$Phylum) 
+
+
+ggplot(gs_taxa_allT) +
+  geom_bar(aes(x = Phylum, y = num_sig, fill = time), 
+           stat = "identity", position = position_dodge(preserve = "single")) +
+  geom_text(aes(Phylum, num_sig, label=num_sig, group = time), 
+            vjust = -0.5, size=4, position = position_dodge(width = .9)) +
+  theme_light(base_size = 12) +
+  ylab("Number of significant transcripts") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(), legend.title = element_blank()) +
+  facet_grid(cols = vars(Kingdom), space = "free", scales = "free") +
+  scale_fill_manual(values = c("#D5D8DC", "#808B96", "#2C3E50")) 
+
+```
+
+### Important Phyla
+
+```{r, message=FALSE, warning=FALSE}
+gs_t1_taxa <- gs_t1 %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "Straw") %>%
+  group_by(Phylum, Genus) %>%
+  filter(!is.na(Phylum)) %>%
+  summarise(num_sig= n())
+gs_t1_taxa$time <- "T1"
+
+gs_t3_taxa <- gs_t3 %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "Straw") %>%
+  group_by(Phylum, Genus) %>%
+  filter(!is.na(Phylum)) %>%
+  summarise(num_sig= n())
+gs_t3_taxa$time <- "T3"
+
+gs_t6_taxa <- gs_t6 %>%
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "Straw") %>%
+  group_by(Phylum, Genus) %>%
+  filter(!is.na(Phylum)) %>%
+  summarise(num_sig= n())
+gs_t6_taxa$time <- "T6"
+
+gs_taxa_allT <- rbind(gs_t1_taxa, gs_t3_taxa, gs_t6_taxa)
+
+keep_phyla <- c("Actinobacteria", "Proteobacteria", "Ascomycota")
+
+rem_phyla <- gs_taxa_allT %>% 
+  filter(Phylum %in% keep_phyla) %>%
+  group_by(Genus) %>%
+  summarise(tot_sig= sum(num_sig)) %>%
+  filter(tot_sig > 5)
+
+gs_taxa_allT <- gs_taxa_allT %>% 
+  filter(Phylum %in% keep_phyla) %>%
+  filter(Genus %in% rem_phyla$Genus) 
+gs_taxa_allT$Phylum <- factor(gs_taxa_allT$Phylum, levels = c("Actinobacteria", "Proteobacteria", "Ascomycota"))
+
+ggplot(gs_taxa_allT) +
+  geom_bar(aes(x = Genus, y = num_sig, fill = time), 
+           stat = "identity", position = position_dodge(preserve = "single")) +
+  geom_text(aes(Genus, num_sig, label=num_sig, group = time), 
+            vjust = -0.5, size=4, position = position_dodge(width = .9)) +
+  theme_light(base_size = 12) +
+  ylab("Number of significant transcripts") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(), legend.title = element_blank()) +
+  facet_grid(cols = vars(Phylum), space = "free", scales = "free") +
+  scale_fill_manual(values = c("#D5D8DC", "#808B96", "#2C3E50")) 
+```
+
+## Change in time (Mainly straw T6 vs T1)
+
+Since this is the most interesting part, let us just focus on this!
+
+### In T6
+
+```{r, message=FALSE, warning=FALSE}
+gs_t6vt1_tdb <- gs_t6vt1_all %>% 
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "T6") %>%
+  group_by(enz_class, enz_family) %>%
+  summarise(num_sig= n(), mean_log2FC = mean(abs(log2FoldChange))) %>%
+  filter(!is.na(enz_class)) %>%
+  arrange(desc(num_sig))
+
+ggplot(data = gs_t6vt1_tdb, aes(fill = mean_log2FC, area = num_sig, label= enz_family, subgroup=enz_class)) +
+  geom_treemap() +
+  geom_treemap_text(colour ="white", place = "centre") +
+  theme_pubclean(base_size = 12) +
+  scale_fill_gradient(low = "#A3E4D7", high = "#117864")
+```
+
+There were `62` transcripts in total that were significantly abundant t6 compared to t1 in straw samples! Out of which `24` had matches to the TDB. The top CAZy families are listed below:
+
+```{r, message=FALSE, warning=FALSE}
+#gs_all %>% 
+#  filter(condition == "Straw") %>%
+#  dim()
+#sum(gs_all_tdb$num_sig)
+kable(head(gs_t6vt1_tdb, 10))
+```
+
+```{r, message=FALSE, warning=FALSE}
+gs_t6vt1_tdb <- gs_t6vt1_all %>% 
+  filter(!(is.na(enz_class) & (Transcript %in% silva_hits$V1))) %>%
+  filter(condition == "T1") %>%
+  group_by(enz_class, enz_family) %>%
+  summarise(num_sig= n(), mean_log2FC = mean(abs(log2FoldChange))) %>%
+  filter(!is.na(enz_class)) %>%
+  arrange(desc(num_sig))
+
+ggplot(data = gs_t6vt1_tdb, aes(fill = mean_log2FC, area = num_sig, label= enz_family, subgroup=enz_class)) +
+  geom_treemap() +
+  geom_treemap_text(colour ="white", place = "centre") +
+  theme_pubclean(base_size = 12) +
+  scale_fill_gradient(low = "#A3E4D7", high = "#117864")
+```
+
+There were `262` transcripts in total that were significantly abundant t1 compared to t6 in straw samples! Out of which `196` had matches to the TDB. The top CAZy families are listed below:
+
+```{r, message=FALSE, warning=FALSE}
+#gs_all %>% 
+#  filter(condition == "Straw") %>%
+#  dim()
+#sum(gs_all_tdb$num_sig)
+kable(head(gs_t6vt1_tdb, 10))
+```
+
+```{r}
+de_grass_overview <- ggplot(data = ovr_nsig_data) +
+  geom_bar(aes(x = test, y = log10(num_sig), fill = condition),
+           position = "dodge",stat = "identity") +
+  geom_text(aes(test, log10(num_sig), label=num_sig, group = condition),
+            vjust = 1.5, size=4, position = position_dodge(width = .9)) +
+  facet_wrap(~Main_test, scales = "free_x") +
+  scale_fill_manual(values = c("#F5B041", "#6C3483", "#D5D8DC", "#808B96", "#2C3E50")) +
+  ylab("Number of DE transcripts [log10]") +
+  theme_pubclean(base_size = 12) +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title = element_blank()) + labs(fill = "") + labs(tag="b)") +
+  scale_y_continuous(limits = c(0, 2.6))
+```
+
+
+
